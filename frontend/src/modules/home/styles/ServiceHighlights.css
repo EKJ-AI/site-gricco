@@ -1,0 +1,142 @@
+.services {
+  background: linear-gradient(
+    180deg,
+    #003366 0%,
+    #1d4b66 25%,
+    #3d8194 50%,
+    #63b5ba 75%,
+    #a6dcd8 100%
+  );
+}
+
+.service-highlights {
+  display: flex;
+  justify-content: space-between;
+  color: #ffffff;
+  gap: 60px;
+  align-items: flex-end;
+  padding: 20px 9rem;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.carousel-title {
+  text-align: center;
+  padding: 1rem 2rem;
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.highlight-intro {
+  text-align: center;
+  padding: 1rem 8rem;
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.highlight-intro h3 {
+  padding: 2rem 8rem 0 8rem;
+  font-size: 1.6rem;
+}
+
+.highlight {
+  flex: 1 1 250px; /* permite encolher e quebrar em telas menores */
+  text-align: center;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.highlight img {
+  width: 90px;
+  height: auto;
+}
+
+.icon {
+  width: 40px;
+  height: 48px;
+  margin-bottom: 15px;
+}
+
+h3 {
+  font-size: 1rem; /* corrigido 1.rem para 1rem */
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+p {
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+/* Responsividade */
+
+/* Tablets e telas médias */
+@media (min-width: 1400px) {
+  .service-highlights {
+    padding: 2rem 20rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .service-highlights {
+    padding: 20px 3rem !important;
+    gap: 40px;
+  }
+
+  .highlight-intro {
+    padding: 1rem 3rem;
+    font-size: 1.3rem;
+  }
+
+  .highlight-intro h3 {
+    padding: 2rem 3rem 0 3rem;
+    font-size: 1.4rem;
+  }
+
+  .highlight {
+    flex: 1 1 45%; /* duas colunas */
+  }
+
+  h3 {
+    font-size: 0.95rem;
+  }
+
+  p {
+    font-size: 0.75rem;
+  }
+}
+
+/* Smartphones e telas pequenas */
+@media (max-width: 576px) {
+  .service-highlights {
+    flex-direction: column;
+    padding: 20px 1.5rem !important;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .highlight-intro {
+    padding: 1rem 1rem;
+    font-size: 1.2rem;
+  }
+
+  .highlight-intro h3 {
+    padding: 2rem 1rem 0 1rem;
+    font-size: 1.3rem;
+  }
+
+  .highlight {
+    flex: 1 1 100%; /* uma coluna */
+    padding: 15px 0;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  p {
+    font-size: 0.8rem;
+  }
+}

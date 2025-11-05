@@ -1,0 +1,102 @@
+/* Container da hero com imagem no fundo */
+
+.hero-section {
+  position: relative;
+  height: 85vh;
+  width: 100%;
+  overflow: hidden;
+
+  /* Flex para centralizar conteúdo */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  box-sizing: border-box;
+  text-align: center;
+  color: white;
+}
+
+/* Imagem de fundo + overlay escuro */
+.background-image {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('../../../shared/assets/images/home/bg.png');
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  mix-blend-mode: multiply;
+  z-index: 1;
+  transition: background-position 0.3s ease;
+}
+
+.overlay-dark {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(50, 50, 50, 0.5); /* um pouco mais escuro */
+  z-index: 2;
+}
+
+/* Conteúdo da hero */
+.hero-section > *:not(.background-image):not(.overlay-dark) {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  width: 100%;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+/* Exemplo de texto (ajuste conforme seu conteúdo) */
+.hero-section h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.hero-section p {
+  font-size: 1.25rem;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Responsividade */
+
+/* Telas médias (tablets) */
+@media (max-width: 992px) {
+  .hero-section {
+    height: 75vh;
+    padding: 0 15px;
+  }
+  .hero-section h1 {
+    font-size: 2.5rem;
+  }
+  .hero-section p {
+    font-size: 1.1rem;
+  }
+  .background-image {
+    background-position: center 40%;
+  }
+}
+
+/* Telas pequenas (smartphones) */
+@media (max-width: 576px) {
+  .hero-section {
+    height: 65vh;
+    padding: 0 10px;
+  }
+  .hero-section h1 {
+    font-size: 1.8rem;
+  }
+  .hero-section p {
+    font-size: 1rem;
+  }
+  .background-image {
+    background-position: center 50%;
+  }
+}

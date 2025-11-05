@@ -1,0 +1,16 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* evita scroll horizontal */
+  width: 100%;
+}
+.display-block {
+  display: block;
+}
+
+.conteudo {
+  max-width: 1400px;
+  padding: 0px 60px;
+  justify-self: center;
+  justify-content: center;
+}

@@ -1,0 +1,77 @@
+/* Service.css */
+.services-page {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  background-color: #f4f7f4;
+  color: #333;
+  margin-top: 80px;
+}
+
+.services-hero {
+  padding: 80px 20px;
+  text-align: center;
+  color: white;
+}
+
+.services-hero h1 {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.services-hero p {
+  font-size: 18px;
+  max-width: 600px;
+  margin: auto;
+}
+
+.services-cta-button {
+  margin-top: 20px;
+  background-color: var(--dynamic-color);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.services-section {
+  padding: 60px 20px;
+  max-width: 1000px;
+  margin: auto;
+}
+
+.services-section h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+.services-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+}
+
+.services-card ul {
+  margin: 20px;;
+}
+
+.services-card {
+  background: white;
+  padding: 24px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.services-card h3 {
+  margin-top: 0;
+  color: var(--dynamic-color);
+}
+
+.blog-section {
+  background-color: inherit;
+  padding: inherit;
+  /* padding: 2rem; */
+  padding: 20px 0;
+}

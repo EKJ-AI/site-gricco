@@ -1,0 +1,95 @@
+.hero {
+  position: relative;
+  /* height: 100vh; */
+  height: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 2rem 10rem; /* Espaço de 10rem nos lados, igual à navbar */
+  box-sizing: border-box;
+}
+
+.hero-content {
+  /* transform: translateY(-40px); */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* alinhamento à esquerda */
+  color: white;
+  max-width: 700px;
+  padding: 0; /* Removido o padding extra lateral */
+  box-sizing: border-box;
+}
+
+/* Ajuste do título */
+.hero h1 {
+  /* font-size: 2rem; */
+  font-size: clamp(1.6rem,2.2vw + 1.2rem,2.6rem);
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+/* Botão CTA */
+.hero-cta {
+  background-color: #20b2aa;
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.hero-cta:hover {
+  background-color: #168c8c;
+}
+
+/* Responsividade */
+@media (min-width: 1400px) {
+  .hero {
+    padding: 2rem 20rem;
+  }
+}
+
+/* Para tablets e telas médias */
+@media (max-width: 992px) {
+  .hero{
+    padding: 4rem;
+  }
+  .hero-content {
+    /* padding: 2rem 4rem; */
+  }
+  .hero h1 {
+    font-size: 1.7rem;
+    margin-bottom: 1.5rem;
+  }
+  .hero-cta {
+    padding: 0.65rem 1.75rem;
+  }
+}
+
+/* Para smartphones e telas pequenas */
+@media (max-width: 576px) {
+  .hero {
+    justify-content: center;
+    padding: 0 1rem;
+  }
+  .hero-content {
+    transform: translateY(0);
+    padding: 1.5rem 1.5rem;
+    max-width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+  .hero-cta {
+    padding: 0.5rem 1.2rem;
+    width: 100%;
+    max-width: 300px;
+  }
+  
+}

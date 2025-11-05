@@ -1,0 +1,111 @@
+.timeline-container {
+  position: relative;
+  max-width: 900px;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+
+/* Linha vertical central */
+.timeline-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #0077b6, #00b4d8);
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.timeline-item {
+  position: relative;
+  width: 45%;
+  padding: 1rem 2rem;
+  box-sizing: border-box;
+  background: #f1f9ff;
+  border-radius: 8px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+  margin: 2rem 0;
+  z-index: 2;
+  transition: transform 0.4s ease, opacity 0.6s ease;
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeUp 0.8s forwards;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Alterna entre esquerda e direita */
+.timeline-item.left {
+  left: 0;
+  transform-origin: right;
+}
+
+.timeline-item.right {
+  left: 55%;
+  transform-origin: left;
+}
+
+/* Conectores (círculos) */
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  top: 1.25rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #122a6a, #00b4d8);
+  border: 3px solid white;
+  box-shadow: 0 0 10px #122a6a;
+  z-index: 3;
+}
+
+.timeline-item.left::before {
+  right: -32px;
+}
+
+.timeline-item.right::before {
+  left: -32px;
+}
+
+/* Ano grande */
+.timeline-year {
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #122a6a;
+  margin-bottom: 0.25rem;
+  letter-spacing: 1.2px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Descrição */
+.timeline-desc {
+  font-size: 1.1rem;
+  color: #122a6a;
+  line-height: 1.4;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .timeline-line {
+    left: 8px;
+  }
+  .timeline-item {
+    width: 100%;
+    padding-left: 3.5rem;
+    margin: 2rem 0 2rem 1rem !important;
+    left: 0 !important;
+  }
+  .timeline-item::before {
+    /* left: 0 !important; */
+    left: -37px !important;
+    right: auto !important;
+  }
+}

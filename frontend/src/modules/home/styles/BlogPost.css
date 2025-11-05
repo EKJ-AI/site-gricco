@@ -1,0 +1,104 @@
+.blog-post-container {
+  max-width: 900px;
+  margin: 3rem auto;
+  padding: 2rem 1rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #222;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  border-radius: 12px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* centraliza blocos no eixo horizontal */
+}
+
+.blog-post-container h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #0f1a2b;
+  line-height: 1.2;
+  width: 100%;
+  text-align: center !important;
+}
+
+.blog-post-meta {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+  font-style: italic;
+  width: 100%;
+  text-align: center !important;
+}
+
+.blog-post-container p {
+  font-size: 1.125rem;
+  line-height: 1;
+  color: #444;
+  white-space: pre-line;
+  max-width: 650px;
+  text-align: left !important;
+}
+
+.blog-post-container img {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  margin-bottom: 2rem;
+  object-fit: cover;
+  margin-top: 3rem
+}
+
+.like-button {
+  background-color: #0077cc;
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-weight: 600;
+  padding: 0.6rem 1.8rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(0, 119, 204, 0.4);
+  transition: background-color 0.3s ease;
+  user-select: none;
+  outline-offset: 2px;
+  margin-top: 2rem;
+}
+
+.like-button.liked {
+  background-color: #005fa3;
+}
+
+.like-count {
+  margin-top: 0.5rem;
+  color: #555;
+  font-size: 1rem;
+}
+
+.training-article-container {
+  max-width: 800px;
+  margin: 3rem auto;
+  padding: 2rem 1rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #222;
+  line-height: 1.7;
+  text-align: left; /* garante alinhamento à esquerda */
+}
+
+.training-article-container h1 {
+  font-size: 2.8rem;
+  margin-bottom: 2rem;
+  color: #0f1a2b;
+  text-align: center; /* título pode ficar centralizado */
+}
+
+.article-content h3 {
+  font-size: 1.2em;
+  margin-top: 1.5rem;
+  font-weight: 700;
+}
+
+.article-content{
+    padding: 0 5rem;
+}

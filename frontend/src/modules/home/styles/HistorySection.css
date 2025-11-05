@@ -1,0 +1,92 @@
+.history-section {
+  padding: 2rem 10rem;
+  background-color: #a6dcd8;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+}
+
+.section-title {
+  text-align: center;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  color: #0a1f44;
+  margin-bottom: 3rem;
+}
+
+.history-content {
+  display: flex;
+  gap: 2rem; /* gap ajustado para o mobile */
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap; /* já presente e super necessário! */
+}
+
+/* Coluna esquerda - linha do tempo */
+.timeline-column {
+  flex: 1 1 280px;
+  min-width: 260px;
+  max-width: 100%;
+}
+
+/* Coluna direita - texto */
+.text-column {
+  flex: 1 1 280px;
+  max-width: 100%;
+  color: #0a1f44;
+  padding: 0 0.5rem; /* dá respiro lateral em telas pequenas */
+  box-sizing: border-box;
+}
+
+.text-column p {
+  font-size: clamp(1rem, 2.5vw, 1.1rem);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  color: #122a6a;
+}
+
+@media (min-width: 1400px) {
+    .history-section {
+        padding: 4rem 20rem;
+    }
+}
+
+@media (max-width: 992px) {
+  .history-section {
+    padding: 2rem 6rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .history-section {
+    padding: 2rem 3rem;
+  }
+
+  .section-title {
+    font-size: 1.7rem;
+  }
+
+  .text-column p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .history-section {
+    padding: 1.5rem 1rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .text-column {
+    padding: 0;
+  }
+
+  .text-column p {
+    font-size: 0.95rem;
+  }
+
+  .history-content {
+    gap: 1.25rem;
+  }
+}

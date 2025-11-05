@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  passwordHash String
+  profileId    String
+  refreshToken String?
+  profile      Profile    @relation(fields: [profileId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Profile {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  description String?
+  users       User[]
+  permissions ProfilePermission[]
+  createdAt   DateTime            @default(now())
+}
+
+model Permission {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  description String?
+  profiles    ProfilePermission[]
+  createdAt   DateTime            @default(now())
+}
+
+model ProfilePermission {
+  id           String     @id @default(uuid())
+  profileId    String
+  permissionId String
+  profile      Profile    @relation(fields: [profileId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([profileId, permissionId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  details   String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model Culture {
+  id          String   @id // era @unique; aqui deve ser a PK
+  description String
+  icon        String
+  order       Int
+  active      Boolean   @default(true)
+
+  labels      Label[]
+
+  @@index([active, order])
+  @@index([description])
+}
+
+model Label {
+  id          Int       @id @default(autoincrement())
+  code        String
+  key         String
+  cultureId   String
+  culture     Culture   @relation(fields: [cultureId], references: [id])
+  description String
+  tutorial    String?
+  version     Int?
+  createdAt   DateTime  @default(now())
+
+  @@index([cultureId])
+  @@index([code])
+  @@index([key])
+  @@index([description])
+  @@unique([cultureId, key]) // opcional: evita duplicar key na mesma cultura
+}
