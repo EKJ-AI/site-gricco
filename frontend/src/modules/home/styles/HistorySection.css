@@ -1,6 +1,6 @@
 .history-section {
   padding: 2rem 10rem;
-  background-color: #a6dcd8;
+  background-color: #bcc8e1;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   box-sizing: border-box;
 }
@@ -23,7 +23,7 @@
 /* Coluna esquerda - linha do tempo */
 .timeline-column {
   flex: 1 1 280px;
-  min-width: 260px;
+  /* min-width: 260px; */
   max-width: 100%;
 }
 

@@ -1,5 +1,5 @@
 .footer {
-  background-color: #1e2f45; /* azul escuro */
+  background-color: #081530; /* azul escuro */
   color: white;
   padding: 40px 60px;
   font-family: 'Inter', sans-serif;
@@ -15,18 +15,19 @@
 
 .footer-logo img {
   height: 100px;
-  object-fit: contain;
+  /* object-fit: contain;
   padding-left: 6rem;
-  padding-top: 3rem;
+  padding-top: 3rem; */
 }
 
 .footer-column {
   flex: 1;
   min-width: 180px;
+  padding-top: 30px;
 }
 
 .footer-column h4 {
-  color: #5fa8e2; /* azul claro */
+  color: #fff; /* azul claro */
   margin-bottom: 15px;
 }
 

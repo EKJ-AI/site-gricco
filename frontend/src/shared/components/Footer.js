@@ -1,6 +1,6 @@
 // Footer.jsx
 import React from 'react';
-import logo from '../assets/images/logo-white.png';
+import logo from '../assets/images/lgGricco_white.svg';
 import "./../styles/Footer.css"
 import { useTranslation } from '../i18n';
 

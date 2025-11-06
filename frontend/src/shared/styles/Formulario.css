@@ -6,7 +6,7 @@
 }
 /* Estilos da seção de contato */
 .contact-section {
-  background: #003366;
+  background: #081530;
   color: white;
   padding: 2rem 10rem;
 }
@@ -23,6 +23,7 @@
 .contact-info {
   flex: 1;
   min-width: 260px;
+  padding: 20px 20px 0px 20px;
 }
 
 .contact-info h2 {
@@ -49,7 +50,7 @@
 .contact-form {
   flex: 1;
   min-width: 260px;
-  background-color: rgba(255, 255, 255, 0.1);
+  /* background-color: rgba(255, 255, 255, 0.1); */
   padding: 2rem 1rem; /* Adiciona espaço lateral interno */
   border-radius: 8px;
   backdrop-filter: blur(6px);
@@ -158,5 +159,9 @@
   .contact-btn {
     width: 100%; /* Botão mais acessível em telas pequenas */
     padding: 1rem;
+  }
+
+  .contact-info {
+    padding: 20px;
   }
 }

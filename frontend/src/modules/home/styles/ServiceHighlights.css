@@ -1,12 +1,13 @@
 .services {
-  background: linear-gradient(
+  background: #081530;
+  /* background: linear-gradient(
     180deg,
     #003366 0%,
     #1d4b66 25%,
     #3d8194 50%,
     #63b5ba 75%,
     #a6dcd8 100%
-  );
+  ); */
 }
 
 .service-highlights {

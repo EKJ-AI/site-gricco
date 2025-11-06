@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import '../styles/NavBar.css';
-import logo from '../assets/images/logo-white.png'; 
-import logoDark from '../assets/images/logo_dark.png';
+// import logo from '../assets/images/logo-white.png'; 
+import logo from '../assets/images/lgGricco_white.svg';
+//import logoDark from '../assets/images/logo_dark.png';
+import logoDark from '../assets/images/lgGricco_black.svg';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from '../i18n';
 import { useAuth } from '../../modules/auth/contexts/AuthContext';
@@ -85,7 +87,6 @@ const Navbar = () => {
         </Link>
 
         <nav className="nav-links menu-desktop">
-          <a href="/" onClick={handleLinkClick}>{t('menu_option0')}</a>
           <div className='item' onMouseEnter={abreMenu} onMouseLeave={abreMenu}>
             <a href="/#products" onClick={handleLinkClick}>{t('menu_option1')}</a>
             <ul className='submenu'>
@@ -103,7 +104,12 @@ const Navbar = () => {
               <li className='item'><a href="/politica-de-compliance">{t('policy.compliance.ethic')}</a></li>
             </ul>
           </div>          
-          <a href="/#contact" onClick={handleLinkClick}>{t('menu_option3')}</a>
+          <a href="/" onClick={handleLinkClick}>{t('menu_option0')}</a>
+          <a href="/" onClick={handleLinkClick}>{t('menu_option5')}</a>
+          <a href="/" onClick={handleLinkClick}>{t('menu_option6')}</a>
+          <a href="/" onClick={handleLinkClick}>{t('menu_option7')}</a>
+          <a href="/" onClick={handleLinkClick}>{t('menu_option8')}</a>
+          {/* <a href="/#contact" onClick={handleLinkClick}>{t('menu_option3')}</a> */}
 
           <select 
             className="language-selector"
@@ -123,7 +129,7 @@ const Navbar = () => {
               <button onClick={handleLogout}>Sair</button>
             </>
           ) : (
-            <Link to="/login" onClick={handleLinkClick}>{t('menu_option4')}</Link>
+            <Link to="/login" className='btn-login' onClick={handleLinkClick}>{t('menu_option4')}</Link>
           )}          
         </nav>
       </header>

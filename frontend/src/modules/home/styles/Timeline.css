@@ -1,8 +1,9 @@
 .timeline-container {
   position: relative;
-  max-width: 900px;
+  width: 457px;
+  /* max-width: 900px;
   margin: 3rem auto;
-  padding: 0 1rem;
+  padding: 0 1rem; */
 }
 
 /* Linha vertical central */
@@ -13,7 +14,8 @@
   transform: translateX(-50%);
   width: 4px;
   height: 100%;
-  background: linear-gradient(180deg, #0077b6, #00b4d8);
+  /* background: linear-gradient(180deg, #0077b6, #00b4d8); */
+  background-color: #081530;
   border-radius: 2px;
   z-index: 1;
 }
@@ -23,7 +25,7 @@
   width: 45%;
   padding: 1rem 2rem;
   box-sizing: border-box;
-  background: #f1f9ff;
+  background: #fff;
   border-radius: 8px;
   box-shadow: 0 6px 15px rgba(0,0,0,0.1);
   margin: 2rem 0;
@@ -60,18 +62,18 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #122a6a, #00b4d8);
+  background: linear-gradient(135deg, #081530, #4663a1);
   border: 3px solid white;
   box-shadow: 0 0 10px #122a6a;
   z-index: 3;
 }
 
 .timeline-item.left::before {
-  right: -32px;
+  right: -36px;
 }
 
 .timeline-item.right::before {
-  left: -32px;
+  left: -36px;
 }
 
 /* Ano grande */
@@ -105,7 +107,10 @@
   }
   .timeline-item::before {
     /* left: 0 !important; */
-    left: -37px !important;
+    left: -21px !important;
     right: auto !important;
+  }
+  .timeline-container{
+    width: 100% !important;
   }
 }
