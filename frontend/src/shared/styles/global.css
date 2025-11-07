@@ -1,8 +1,17 @@
+@font-face {
+  font-family: "archivo";
+  src: url(../shared/assets/fonts/Archivo-VariableFont_wdth-wght.ttf);
+}
+@font-face {
+  font-family: "archivo-variable";
+  src: url(../shared/assets/fonts/Archivo-Italic-VariableFont_wdth-wght.ttf);
+}
 html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden; /* evita scroll horizontal */
   width: 100%;
+  font-family: 'archivo', 'archivo-variable', 'calibri';
 }
 .display-block {
   display: block;

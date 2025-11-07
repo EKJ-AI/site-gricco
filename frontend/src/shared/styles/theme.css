@@ -1,5 +1,26 @@
+/* src/shared/styles/theme.css */
+@font-face {
+  font-family: "Archivo";
+  src: url("../assets/fonts/Archivo-VariableFont_wdth-wght.ttf") format("truetype");
+  font-weight: 100 900;       /* variável */
+  font-stretch: 62.5% 125%;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Archivo-italic";
+  src: url("../assets/fonts/Archivo-Italic-VariableFont_wdth-wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-stretch: 62.5% 125%;
+  font-style: italic;
+  font-display: swap;
+}
+
+
 * {
-  font-family: 'Inter', sans-serif;
+  /* font-family: 'Inter', sans-serif; */
+  font-family: 'archivo', 'archivo-italic', 'calibri';
 }
 
 /*body.light {
