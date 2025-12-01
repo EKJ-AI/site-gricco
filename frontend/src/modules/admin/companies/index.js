@@ -1,0 +1,1 @@
+export { default as companiesRoutes } from './routes.jsx';

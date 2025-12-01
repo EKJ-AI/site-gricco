@@ -1,35 +1,37 @@
+// src/api/axios.js
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  //baseURL: 'https://api.gricco.com.br',
-  //baseURL: process.env.NODE_ENV=="production" ? process.env.REACT_APP_API_URL : 'http://localhost:3000',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  withCredentials: true // para enviar cookies
-});
+const isProd = process.env.NODE_ENV === 'production';
 
-// Add interceptor
-api.interceptors.response.use(
-  (res) => res,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const res = await api.post('/api/auth/refresh');
-        const newAccessToken = res.data.accessToken;
-        localStorage.setItem('imax-token', newAccessToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
-      } catch (err) {
-        console.error('Refresh token falhou', err);
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+// Sempre tenta pegar da env primeiro (produção E desenvolvimento)
+const fromEnv = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.trim()
+  : '';
+
+// Fallback em dev se a env não estiver setada
+const fallbackDevBaseURL = 'http://localhost:3000'; // ajuste se seu backend usar outra porta
+
+const resolvedBaseURL = fromEnv || (isProd ? '' : fallbackDevBaseURL);
+
+// Logs úteis só em dev
+if (!isProd) {
+  // eslint-disable-next-line no-console
+  console.log('NODE_ENV:', process.env.NODE_ENV, 'API baseURL:', resolvedBaseURL);
+}
+
+// Falha cedo se esquecer a env em produção
+if (isProd && !resolvedBaseURL) {
+  throw new Error(
+    'REACT_APP_API_URL não definida para produção. Verifique seu .env.production'
+  );
+}
+
+const api = axios.create({
+  baseURL: resolvedBaseURL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true, // para enviar/receber cookies (refreshToken)
+});
 
 export default api;

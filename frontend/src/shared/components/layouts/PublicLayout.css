@@ -1,0 +1,9 @@
+html, body, #root {
+    height: auto !important;
+}
+.public-layout.showTopBar-false main {
+    padding-top: 0px !important;
+}
+.public-layout.showTopBar-false header, .public-layout.showBottomBar-false footer {
+    display: none;
+}

@@ -1,9 +1,11 @@
+// src/shared/contexts/LanguageContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState('pt');
+  // cultureId padrão: 'pt-BR'
+  const [language, setLanguage] = useState('pt-BR');
 
   useEffect(() => {
     try {
@@ -12,7 +14,7 @@ export function LanguageProvider({ children }) {
         setLanguage(saved);
         console.log(`[iMAX-Language] ✅ Carregado do localStorage: ${saved}`);
       } else {
-        console.log('[iMAX-Language] ⚠️ Nenhum idioma salvo, usando padrão "pt"');
+        console.log('[iMAX-Language] ⚠️ Nenhum idioma salvo, usando padrão "pt-BR"');
       }
     } catch (error) {
       console.warn('[iMAX-Language] ⚠️ Erro ao carregar idioma do localStorage', error);

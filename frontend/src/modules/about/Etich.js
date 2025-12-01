@@ -1,13 +1,31 @@
-import React from "react";
+import React, {useEffect} from "react";
 import "./styles/About.css";
 import "./styles/Etich.css";
 import { useTranslation } from "../../shared/i18n";
 //import slide1 from '../../shared/assets/images/home/slide1.jpg';
 import slide1 from '../../shared/assets/images/about/Etica.jpg';
 import parse from 'html-react-parser';
+import { useLayout } from '../../shared/contexts/LayoutContext';
 
 export default function Etich({ title, description, services, image, color }) {
   const { t } = useTranslation();
+  const { setLayout, resetLayout } = useLayout();
+  
+    useEffect(() => {
+      // ao entrar na página
+      setLayout({
+        transparentNavbar: false,
+        pageTitle: t('dashboard'),   // título na topbar
+        showTopBar: true,
+        showLeftSidebar: true,
+        showRightPanel: true,        // ex.: painel lateral com filtros
+      });
+  
+      // ao sair da página (volta pro default)
+      return () => {
+        resetLayout();
+      };
+    }, [setLayout, resetLayout, t]);
 
   const etich = {
     title: "ethic.conduct",
@@ -36,11 +54,11 @@ export default function Etich({ title, description, services, image, color }) {
       >
         <h1>{t(etich.title)}</h1>
         <p>{t(etich.description)}</p>
-        {/* <button className="about-button">{t('services_button')}</button> */}
+        {/* <button className="about-button">{t('services.button')}</button> */}
       </header>
 
-      <section className="about-section">
-        {/* <h2>{t('services_subtitle')}</h2> */}
+      <section className="conteudo-interno">
+        {/* <h2>{t('services.subtitle')}</h2> */}
         <div className="about-cards" style={{'--dynamic-color': etich.color, display: 'block'}}>
           {
             // html(doc.body.querySelector('*'))

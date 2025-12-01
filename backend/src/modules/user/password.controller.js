@@ -1,8 +1,10 @@
+import { parsePagination } from '../../infra/http/pagination.js';
 import prisma from '../../../prisma/client.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../services/email.service.js';
 import logger from '../../utils/logger.js';
+import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const RESET_EXPIRATION = process.env.RESET_TOKEN_EXPIRATION || '15m';
@@ -49,6 +51,8 @@ export async function forgotPassword(req, res) {
     res.json({ success: true, message: 'Se existir, enviamos o link para o email.' });
   } catch (error) {
     logger.error(`[PASSWORD] Erro no forgotPassword: ${error.message}`, error);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({ success: false, message: 'Erro ao processar solicitação.' });
   }
 }

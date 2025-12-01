@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import '../../../shared/styles/Table.css';
 import api from '../../../api/axios';
 import { useAuth } from '../contexts/AuthContext';
-import Navbar from '../../../shared/components/NavbarOLD';
 
 export default function PermissionsPage() {
   const { accessToken } = useAuth();
@@ -58,7 +57,7 @@ export default function PermissionsPage() {
 
   return (
     <div>
-      <Navbar />
+      {/* <Navbar /> */}
       <h2>Permissões</h2>
       {error && <div className="error-message">{error}</div>}
 

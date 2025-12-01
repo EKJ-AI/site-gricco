@@ -1,4 +1,6 @@
+import { parsePagination } from '../../infra/http/pagination.js';
 import nodemailer from 'nodemailer';
+import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
 
 const toBool = (v) => {
   if (typeof v === 'boolean') return v;
@@ -98,7 +100,10 @@ export async function sendMail(req, res) {
         response: verr?.response
       });
       // Falha de autenticação/porta/domínio → já retorna 500 com detalhe
-      return res.status(500).json({
+      const mapped = prismaErrorToHttp(err);
+if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    res.status(500).json({
         ok: false,
         error: 'Falha ao conectar ao servidor SMTP (verify).',
         details: verr?.message || String(verr),
@@ -194,10 +199,14 @@ export async function sendMail(req, res) {
         autoReply: infoReply?.rejected || [],
       },
     });
-  } catch (err) {
-    // Loga detalhes no servidor e retorna mensagem útil ao cliente
+  }
+  catch (err) {
+  const mapped = prismaErrorToHttp(err);
+  if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+// Loga detalhes no servidor e retorna mensagem útil ao cliente
     console.error('Erro ao enviar e-mail:', err);
-    return res.status(500).json({
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    res.status(500).json({
       ok: false,
       error: 'Falha ao enviar e-mail.',
       details: err?.message || String(err),

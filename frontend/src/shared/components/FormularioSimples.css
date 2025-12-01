@@ -1,0 +1,46 @@
+.formularioSimples {
+    display: flex;
+    background: url("../assets/images/home/lgGricco3D_claro.svg") no-repeat;
+    background-repeat: no-repeat;
+    background-position: -70px calc(100% + 150px);
+}
+
+.formularioSimples div {
+    flex: 1;
+}
+.formularioSimples .titulo {
+    /* background: url("../assets/images/home/lgGricco3D_claro.svg") no-repeat;
+    background-repeat: no-repeat;
+    background-position: -70px calc(100% + 150px); */
+}
+
+.formularioSimples .titulo *{
+    color:var(--cor-azul-padrao);
+    font-weight: bold;
+}
+
+.formularioSimples .campos {
+    margin-bottom: 50px;
+}
+
+.formularioSimples .campos .form-group {
+    padding-top: 20px;
+}
+
+.formularioSimples .campos .form-group input, .formularioSimples .campos .form-group textarea {
+    background-color: var(--cor-cinza-claro-padrao);
+}
+
+@media (max-width: 768px) {
+    .formularioSimples {
+        flex-direction: column;
+    }
+    .formularioSimples div {
+        width: 100%;
+    }
+
+    .formularioSimples {
+        background: none;
+    }
+}
+

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { useTranslation } from '../../../shared/i18n';
 import api from '../../../api/axios';
-import Navbar from '../../../shared/components/NavbarOLD';
 
 export default function AuditLogsPage() {
   const { accessToken } = useAuth();
@@ -44,7 +43,6 @@ export default function AuditLogsPage() {
 
   return (
     <div>
-      <Navbar />
       <h2>{t('audit_logs')}</h2>
       {loading && <p className="loading-message">{t('loading') || 'Carregando...'}</p>}
       {error && <div className="error-message">{error}</div>}

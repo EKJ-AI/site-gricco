@@ -1,14 +1,32 @@
-import React from "react";
+import React, {useEffect} from "react";
 import "./styles/Service.css";
 import { useTranslation } from "../../shared/i18n";
 import parse from 'html-react-parser';
 import BlogSection from '../home/components/BlogSection';
+import { useLayout } from '../../shared/contexts/LayoutContext';
 
 export default function ServicePage({ title, description, services, image, color }) {
   const { t } = useTranslation();
+  const { setLayout, resetLayout } = useLayout();
+
+  useEffect(() => {
+    // ao entrar na página
+    setLayout({
+      transparentNavbar: false,
+      pageTitle: t('dashboard'),   // título na topbar
+      showTopBar: true,
+      showLeftSidebar: true,
+      showRightPanel: true,        // ex.: painel lateral com filtros
+    });
+
+    // ao sair da página (volta pro default)
+    return () => {
+      resetLayout();
+    };
+  }, [setLayout, resetLayout, t]);
 
   return (
-    <div className="services-page">
+    <div>
       <header className="services-hero" 
         style={{
           '--dynamic-color': color,
@@ -19,20 +37,23 @@ export default function ServicePage({ title, description, services, image, color
       }}
       >
         <h1>{t(title)}</h1>
-        <p>{parse(t(description))}</p>
-        <button className="services-cta-button">{t('services_button')}</button>
+        <h3>{parse(t(description))}</h3>
+        <button className="services-cta-button">{t('services.button')}</button>
       </header>
 
-      <section className="services-section">
-        <h2>{t('services_subtitle')}</h2>
+      <section className="conteudo-interno services">
+        <h2>{t('services.subtitle')}</h2>
+        <br />
         <div className="services-cards" style={{'--dynamic-color': color,}}>
           {services.map((item, index) => (
             <div className="services-card" key={index}>
               <h3>{t(item.title)}</h3>
+              <br />
               <p>{parse(t(item.description))}</p>
             </div>
           ))}
         </div>
+        <br /><br />
         <BlogSection />
       </section>
     </div>

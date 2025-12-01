@@ -15,9 +15,9 @@ export default function ResetSuccessPage() {
     <div className="success-container">
       <div className="success-card">
         <div className="success-icon">✅</div>
-        <h2>{t('reset_password')}</h2>
-        <p>{t('password_reset_success_message')}</p>
-        <button onClick={handleBackToLogin}>{t('back_to_login')}</button>
+        <h2>{t('reset.password')}</h2>
+        <p>{t('password.reset.success.message')}</p>
+        <button onClick={handleBackToLogin}>{t('back.to.login')}</button>
       </div>
     </div>
   );

@@ -13,6 +13,91 @@ export function AuthProvider({ children }) {
   // Flag para evitar refresh durante/logout
   const isLoggingOutRef = useRef(false);
 
+  // --- helpers internos ---
+
+  // Limpa apenas o estado local (sem chamar servidor)
+  const hardResetAuthState = () => {
+    localStorage.removeItem('access_token');
+    setAccessToken(null);
+    setUser(null);
+    setPermissions([]);
+    delete api.defaults.headers.common['Authorization'];
+  };
+
+  const setUserFromApi = async (token) => {
+    try {
+      const res = await api.get('/api/users/me', {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+      const apiUser = res.data?.user;
+      if (!apiUser) throw new Error('Resposta sem usuário');
+
+      setUser(apiUser);
+      setPermissions(apiUser?.profile?.permissions || []);
+    } catch (err) {
+      console.error('[Auth] /users/me falhou:', err?.message || err);
+      hardResetAuthState();
+      throw err;
+    }
+  };
+
+  const login = async (token, storeLocal = true) => {
+    if (storeLocal) {
+      localStorage.setItem('access_token', token);
+    }
+    setAccessToken(token);
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    await setUserFromApi(token);
+  };
+
+  const tryRefresh = async () => {
+    try {
+      const res = await api.post(
+        '/api/auth/refresh',
+        {},
+        { withCredentials: true }
+      );
+      const newToken = res.data?.accessToken;
+      if (!newToken) throw new Error('Sem accessToken no refresh');
+
+      await login(newToken, false);
+      return newToken;
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message;
+
+      // 400 = sem cookie (usuário nunca logou ou cookie expirou)
+      // 401 = refresh inválido/expirado → trata como sessão expirada
+      if (status === 400 || status === 401) {
+        console.info('[Auth] Refresh não disponível ou inválido:', status, msg);
+        hardResetAuthState();
+        return null; // NÃO relança erro → initAuth segue fluxo "não logado"
+      }
+
+      console.warn('[Auth] Refresh falhou (erro inesperado):', err?.message || err);
+      hardResetAuthState();
+      throw err; // só erros realmente inesperados sobem
+    }
+  };
+
+  const logout = async () => {
+    try {
+      isLoggingOutRef.current = true;
+      await api.post(
+        '/api/auth/logout',
+        {},
+        { withCredentials: true }
+      );
+    } catch (e) {
+      console.warn('[Auth] Erro ao chamar /auth/logout:', e?.message || e);
+    } finally {
+      hardResetAuthState();
+      isLoggingOutRef.current = false;
+    }
+  };
+
+  // --- initAuth (ao montar app) ---
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -21,16 +106,19 @@ export function AuthProvider({ children }) {
         if (savedToken) {
           const decoded = decodeJwt(savedToken);
           if (decoded && decoded.exp * 1000 > Date.now()) {
+            // token ainda válido → reaproveita
             await login(savedToken, false);
           } else {
+            // token expirado → tenta refresh
             await tryRefresh();
           }
         } else {
+          // nunca logou neste browser → tenta refresh (pode existir cookie)
           await tryRefresh();
         }
       } catch (error) {
-        // se refresh falhar, ficamos deslogados (sem relogar)
-        console.error('[Auth] initAuth error:', error);
+        // Só cai aqui se tryRefresh der erro inesperado (500, network, etc.)
+        console.error('[Auth] initAuth error (inesperado):', error);
         hardResetAuthState();
       } finally {
         setLoading(false);
@@ -40,6 +128,7 @@ export function AuthProvider({ children }) {
     initAuth();
   }, []);
 
+  // --- interceptor 401 → tenta refresh automático ---
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (res) => res,
@@ -59,8 +148,8 @@ export function AuthProvider({ children }) {
               original.headers['Authorization'] = `Bearer ${newToken}`;
               return api(original);
             }
-          } catch (e) {
-            // refresh falhou → seguimos rejeitando sem relogar
+          } catch {
+            // tryRefresh já limpou estado; segue rejeitando
           }
         }
         return Promise.reject(error);
@@ -68,72 +157,6 @@ export function AuthProvider({ children }) {
     );
     return () => api.interceptors.response.eject(interceptor);
   }, []);
-
-  const tryRefresh = async () => {
-    try {
-      const res = await api.post('/api/auth/refresh', {}, { withCredentials: true });
-      const newToken = res.data?.accessToken;
-      if (!newToken) throw new Error('Sem accessToken no refresh');
-      await login(newToken, false);
-      return newToken;
-    } catch (err) {
-      console.warn('[Auth] Refresh falhou:', err?.message || err);
-      // não chama logout() aqui para não reencadear efeitos;
-      hardResetAuthState();
-      throw err;
-    }
-  };
-
-  const setUserFromApi = async (token) => {
-    try {
-      const res = await api.get('/api/users/me', {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true
-      });
-      const apiUser = res.data?.user;
-      if (!apiUser) throw new Error('Resposta sem usuário');
-
-      setUser(apiUser);
-      setPermissions(apiUser?.profile?.permissions || []);
-    } catch (err) {
-      console.error('[Auth] /users/me falhou:', err?.message || err);
-      hardResetAuthState();
-      throw err;
-    }
-  };
-
-  const login = async (token, storeLocal = true) => {
-    // alert('Login'); // remova debug pra não confundir
-    if (storeLocal) {
-      localStorage.setItem('access_token', token);
-    }
-    setAccessToken(token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    await setUserFromApi(token);
-  };
-
-  // Limpa apenas o estado local (sem chamar servidor)
-  const hardResetAuthState = () => {
-    localStorage.removeItem('access_token');
-    setAccessToken(null);
-    setUser(null);
-    setPermissions([]);
-    delete api.defaults.headers.common['Authorization'];
-  };
-
-  // Logout completo: limpa estado + invalida refresh cookie no backend
-  const logout = async () => {
-    try {
-      isLoggingOutRef.current = true;
-      await api.post('/api/auth/logout', {}, { withCredentials: true }); 
-      // ^ este endpoint deve apagar/invalidar o refresh cookie no servidor
-    } catch (e) {
-      console.warn('[Auth] Erro ao chamar /auth/logout:', e?.message || e);
-    } finally {
-      hardResetAuthState();
-      isLoggingOutRef.current = false;
-    }
-  };
 
   return (
     <AuthContext.Provider value={{ user, accessToken, permissions, login, logout, loading }}>

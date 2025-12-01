@@ -1,19 +1,20 @@
+import { parsePagination } from '../../infra/http/pagination.js';
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
 import { registerAudit } from '../../utils/audit.js';
+import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
 
 export async function list(req, res) {
   try {
     logger.info('📥 GET /profile chamado');
 
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
+    const { skip, take, page, pageSize } = parsePagination(req);
 
     const [total, profiles] = await Promise.all([
       prisma.profile.count(),
       prisma.profile.findMany({
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip: skip,
+        take: take,
         include: {
           permissions: {
             include: { permission: true }
@@ -58,8 +59,12 @@ export async function list(req, res) {
         items: result
       }
     });
-  } catch (err) {
+  }
+  catch (err) {
+    
     logger.error(`Erro ao listar perfis: ${err.message}`, err);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
@@ -91,8 +96,12 @@ export async function create(req, res) {
     });
 
     res.status(201).json({ success: true, data: newProfile });
-  } catch (err) {
+  }
+  catch (err) {
+    
     logger.error(`Erro ao criar perfil: ${err.message}`, err);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
@@ -123,8 +132,12 @@ export async function update(req, res) {
     });
 
     res.json({ success: true, data: updatedProfile, message: 'Perfil atualizado com sucesso' });
-  } catch (err) {
+  }
+  catch (err) {
+    
     logger.error(`Erro ao atualizar perfil: ${err.message}`, err);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
@@ -146,8 +159,12 @@ export async function remove(req, res) {
     });
 
     res.json({ success: true, message: 'Perfil deletado com sucesso' });
-  } catch (err) {
+  }
+  catch (err) {
+    
     logger.error(`Erro ao deletar perfil: ${err.message}`, err);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }

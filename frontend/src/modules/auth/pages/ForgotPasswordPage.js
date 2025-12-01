@@ -27,20 +27,20 @@ export default function ForgotPasswordPage() {
   return (
     <div className="page-wrapper">
     <div className="form-container">
-      <h2>{t('forgot_password')}</h2>
+      <h2>{t('forgot.password')}</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="email">{t('contact_form_mail')}</label>
+          <label htmlFor="email">{t('contact.form.mail')}</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder={t("contact_form_mail_placeholder")}
+            placeholder={t("contact.form.mail.placeholder")}
           />
         </div>
         <button type="submit" disabled={loading}>
-          {loading ? t('loading') : t('send_link')}
+          {loading ? t('loading') : t('send.link')}
         </button>
       </form>
       {message && <div className="message">{message}</div>}

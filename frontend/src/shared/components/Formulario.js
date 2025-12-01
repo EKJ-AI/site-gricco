@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import api from '../../api/axios';
 import { useTranslation } from "../../shared/i18n";
-import '../styles/Formulario.css';
+import './Formulario.css';
 
 async function fileToBase64Obj(file) {
   const content = await new Promise((resolve, reject) => {
@@ -97,33 +97,33 @@ export default function EmailForm() {
     <section id="contact" className="contact-section">
       <div className="contact-container">
         <div className="contact-info">
-          <h2>{t('contact_form_title')}</h2>
-          <h3>{t('contact_form_subtitle')}</h3>
+          <h2>{t('contact.form.title')}</h2>
+          <h3>{t('contact.form.subtitle')}</h3>
         </div>
           <form onSubmit={onSubmit} className="contact-form">
               <div className="form-group">
-                <label htmlFor="nome">{t('contact_form_name')}</label>
+                <label htmlFor="nome">{t('contact.form.name')}</label>
                 <input
                   name="nome"
                   value={form.nome}
                   onChange={onChange}
-                  placeholder={t("contact_form_name_placeholder")}
+                  placeholder={t("contact.form.name.placeholder")}
                   disabled={form.anonimato}
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="email">{t('contact_form_mail')}</label>
+                <label htmlFor="email">{t('contact.form.mail')}</label>
                 <input
                   name="email"
                   type="email"
                   value={form.email}
                   onChange={onChange}
-                  placeholder={t("contact_form_mail_placeholder")}
+                  placeholder={t("contact.form.mail.placeholder")}
                   disabled={form.anonimato}
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="telefone">{t('contact_form_telefone')}</label>
+                <label htmlFor="telefone">{t('contact.form.telefone')}</label>
                 <input
                   name="telefone"
                   value={form.telefone}
@@ -133,7 +133,7 @@ export default function EmailForm() {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="tipo">{t('contact_form_tipo')}</label>
+                <label htmlFor="tipo">{t('contact.form.tipo')}</label>
                 <select
                   name="tipo"
                   value={form.tipo}
@@ -148,19 +148,19 @@ export default function EmailForm() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="mensagem">{t('contact_form_msg')}</label>
+                <label htmlFor="mensagem">{t('contact.form.msg')}</label>
                 <textarea
                   name="mensagem"
                   value={form.mensagem}
                   onChange={onChange}
                   rows={6}
-                  placeholder={t("contact_form_msg_placeholder")}
+                  placeholder={t("contact.form.msg.placeholder")}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="anexos">{t('contact_form_anexos')}</label>
+                <label htmlFor="anexos">{t('contact.form.anexos')}</label>
                 <input type="file" multiple onChange={onFiles} />
                 {files.length > 0 && (
                   <p>{files.length} arquivo(s) selecionado(s)</p>
@@ -175,7 +175,7 @@ export default function EmailForm() {
                     checked={form.anonimato}
                     onChange={onChange}
                   />
-                  <span>{t('contact_form_anonimo_placeholder')}</span>
+                  <span>{t('contact.form.anonimo.placeholder')}</span>
                 </label>
 
                 <label className="form-checkbox">
@@ -186,7 +186,7 @@ export default function EmailForm() {
                     onChange={onChange}
                     required
                   />
-                  <span>{t('contact_form_politica_placeholder')}</span>
+                  <span>{t('contact.form.politica.placeholder')}</span>
                 </label>
               </div>
 
@@ -195,7 +195,7 @@ export default function EmailForm() {
                 disabled={loading}
                 className="contact-btn"
               >
-                {loading ? 'Enviando…' : t('contact_form_button_text')}
+                {loading ? 'Enviando…' : t('contact.form.button.text')}
               </button>
 
               {resp && (

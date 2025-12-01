@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import { useAuth } from '../../auth/contexts/AuthContext';
-import Navbar from '../../../shared/components/NavbarOLD';
 
 export default function UsersEditPage() {
   const { id } = useParams();
@@ -94,7 +93,6 @@ export default function UsersEditPage() {
 
   return (
     <div>
-      <Navbar />
       <h2>Editar Usuário</h2>
       {error && <div className="error-message">{error}</div>}
 

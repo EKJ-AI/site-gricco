@@ -1,25 +1,254 @@
-@font-face {
-  font-family: "archivo";
-  src: url(../shared/assets/fonts/Archivo-VariableFont_wdth-wght.ttf);
+:root {
+  --cor-azul-padrao: #141b4d;
+  --cor-cinza-padrao: #666666;
+  --cor-cinza-claro-padrao: #efefef;
+  --cor-laranja-padrao: #ff5a1f;
+  --cor-branca-padrao: #ffffff;
+  --border-radius: 3px;
+  --sombra: 0 10px 30px rgba(15, 29, 58, 0.08);
 }
+
 @font-face {
-  font-family: "archivo-variable";
-  src: url(../shared/assets/fonts/Archivo-Italic-VariableFont_wdth-wght.ttf);
+  font-family: "Archivo";
+  src: url("../assets/fonts/Archivo-VariableFont_wdth-wght.ttf") format("truetype");
+  font-weight: 100 900;       /* variável */
+  font-stretch: 62.5% 125%;
+  font-style: normal;
+  font-display: swap;
 }
+
+@font-face {
+  font-family: "Archivo-italic";
+  src: url("../assets/fonts/Archivo-Italic-VariableFont_wdth-wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-stretch: 62.5% 125%;
+  font-style: italic;
+  font-display: swap;
+}
+
+
+* {
+  font-family: 'Archivo', 'Archivo-italic', 'Calibri' !important;
+  line-height: calc(100% + 6px);
+}
+
 html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden; /* evita scroll horizontal */
   width: 100%;
-  font-family: 'archivo', 'archivo-variable', 'calibri';
+  /* font-family: 'Archivo', 'Archivo-italic', 'Calibri'; */
+  /* height: 100vh; */
 }
+
+/* .conteudo {
+
+} */
+
+.conteudo .conteudo-interno {
+  max-width: 1400px;
+  width: 100%;
+  padding: 40px 60px;
+  justify-self: center;
+  justify-content: center;
+}
+
+.conteudo:not(.transparent-navbar) main {
+  padding-top: 100px;
+}
+
+.conteudo header.navbar {
+  position: fixed;
+  top: 0;
+}
+
+.conteudo:not(.transparent-navbar) header.navbar {
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+  background-color: #ff4e10;
+  border-radius: 3px;
+  color: #fff;
+  font-weight: 600;
+  padding: .75rem 2rem;
+  text-decoration: none;
+  transition: background .3s ease;
+}
+
+.btn:hover {
+  background-color: #168c8c;
+}
+
+.bg-color-gray {
+  background-color: #efefef;
+}
+
+/**************** PADRÕES ********************/
+
+h1{
+  font-size: 46px;
+  font-weight: normal;
+}
+h2{
+  font-size: 32px;
+  font-weight: normal;
+}
+h3{
+  font-size: 26px;
+  font-weight: normal;
+}
+h4{
+  font-size: 16px;
+  font-weight: normal;
+}
+
+.display-none {
+  display: none;
+}
+
 .display-block {
   display: block;
 }
+.display-flex {
+  display: flex;
+}
+.display-inline-block {
+  display: inline-block;
+}
+.gap-5{
+  gap: 5px;
+}
+.gap-10{
+  gap: 10px;
+}
+.gap-15{
+  gap: 15px;
+}
+.gap-20{
+  gap: 20px;
+}
+.text-center {
+  text-align: center;
+}
+.text-right {
+  text-align: right;
+}
+.text-left {
+  text-align: left;
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+.position-relative {
+  position: relative;
+}
+.position-absolute {
+  position: absolute;
+}
+.width-50 {
+  width: 50%;
+}
+.width-100 {
+  width: 100%;
+}
+.height-100 {
+  height: 100%;
+}
+.margin-0 {
+  margin: 0;
+}
+.padding-0 {
+  padding: 0;
+}
+.padding-5{
+  padding: 5px;
+}
+.padding-10{
+  padding: 10px;
+}
+.padding-15{
+  padding: 15px;
+}
+.padding-20{
+  padding: 20px;
+}
+.padding-25{
+  padding: 25px;
+}
+.padding-30{
+  padding: 30px;
+}
 
-.conteudo {
-  max-width: 1400px;
-  padding: 0px 60px;
-  justify-self: center;
+
+.flex-column {
+  flex-direction: column;
+}
+.flex-row {
+  flex-direction: row;
+}
+.justify-center {
   justify-content: center;
+}
+.align-center {
+  align-items: center;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.no-wrap {
+  flex-wrap: nowrap;
+}
+.margin-auto {
+  margin: auto;
+}
+.hidden {
+  display: none;
+}
+.bg-white {
+  background-color: #ffffff;
+}
+
+
+@media (max-width:1400px){
+  h1{
+    font-size: 38px;
+  }
+  h2{
+    font-size: 28px;
+  }
+  h3{
+    font-size: 22px;
+  }
+  h4{
+    font-size: 18px;
+  }
+}
+
+@media (max-width:767px){
+  .conteudo .conteudo-interno {
+    padding: 20px !important;
+  }
+
+  .mobile-width-100{
+    width: 100%;
+  }
+
+  .mobile-display-flex-none{
+    display: inherit;
+  }
+
+  h1{
+    font-size: 28px;
+  }
+  h2{
+    font-size: 20px;
+  }
+  h3{
+    font-size: 16px;
+  }
+  h4{
+    font-size: 12px;
+  }
 }

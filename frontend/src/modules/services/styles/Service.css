@@ -4,7 +4,7 @@
   font-family: 'Montserrat', sans-serif;
   background-color: #f4f7f4;
   color: #333;
-  margin-top: 80px;
+  /* margin-top: 80px; */
 }
 
 .services-hero {
@@ -14,12 +14,13 @@
 }
 
 .services-hero h1 {
-  font-size: 36px;
+  /* font-size: 36px; */
   margin-bottom: 10px;
+  font-weight: bold;
 }
 
 .services-hero p {
-  font-size: 18px;
+  /* font-size: 18px; */
   max-width: 600px;
   margin: auto;
 }
@@ -74,4 +75,9 @@
   padding: inherit;
   /* padding: 2rem; */
   padding: 20px 0;
+}
+
+.services h2 {
+  font-weight: bold;
+  color: var(--cor-azul-padrao);
 }

@@ -43,30 +43,30 @@ export default function ResetPasswordPage() {
   return (
     <div className="page-wrapper">
     <div className="form-container">
-      <h2>{t('reset_password')}</h2>
+      <h2>{t('reset.password')}</h2>
       <form onSubmit={handleSubmit} className="form">
         <div className="form-group">
-          <label>{t('new_password')}</label>
+          <label>{t('new.password')}</label>
           <input
             type="password"
-            placeholder={t('new_password_placeholder')}
+            placeholder={t('new.password.placeholder')}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
           />
         </div>
         <div className="form-group">
-          <label>{t('confirm_new_password')}</label>
+          <label>{t('confirm.new.password')}</label>
           <input
             type="password"
-            placeholder={t('confirm_new_password_placeholder')}
+            placeholder={t('confirm.new.password.placeholder')}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
           />
         </div>
         <button type="submit" disabled={loading}>
-          {loading ? t('loading') : t('change_password')}
+          {loading ? t('loading') : t('change.password')}
         </button>
       </form>
       {message && <div className="message">{message}</div>}

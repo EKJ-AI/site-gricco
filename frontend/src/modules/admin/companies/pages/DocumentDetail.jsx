@@ -1,0 +1,1215 @@
+// src/modules/admin/companies/pages/DocumentDetail.jsx
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../../../auth/contexts/AuthContext';
+import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import {
+  getDocument,
+  listVersions,
+  uploadVersion,
+  activateVersion,
+  listRelations,
+  createDocument,
+  createRelation,
+  searchDocumentTypes,
+  searchDocuments,
+} from '../api/documents';
+import AutocompleteSelect from '../components/AutocompleteSelect.jsx';
+import FileDropzone from '../components/FileDropzone.jsx';
+import api from '../../../../api/axios';
+
+// Helper para montar URL absoluta do arquivo no backend,
+// independente de porta ou ambiente.
+function resolveFileUrl(version) {
+  if (!version?.storagePath) return null;
+
+  const storagePath = version.storagePath.trim();
+
+  // Já é URL absoluta? Deixa como está.
+  if (/^https?:\/\//i.test(storagePath)) {
+    return storagePath;
+  }
+
+  // Base do backend, ex.: http://localhost:3000/api
+  const baseURL = api.defaults.baseURL || '';
+  // Remove /api ou /api/ do final para ficar só host do backend
+  const backendOrigin = baseURL.replace(/\/api\/?$/, '');
+
+  // Normaliza o path de arquivos
+  let pathPart = storagePath;
+
+  // Se já for /uploads/... usamos direto
+  if (pathPart.startsWith('/uploads/')) {
+    return `${backendOrigin}${pathPart}`;
+  }
+
+  // Se for "uploads/..." sem barra inicial
+  if (pathPart.startsWith('uploads/')) {
+    return `${backendOrigin}/${pathPart}`;
+  }
+
+  // Qualquer outro caso: prefixa com /uploads/
+  pathPart = pathPart.replace(/^\/+/, ''); // tira barras no começo
+  return `${backendOrigin}/uploads/${pathPart}`;
+}
+
+export default function DocumentDetail() {
+  const { companyId, establishmentId, documentId } = useParams();
+  const { accessToken } = useAuth();
+
+  const authReady = useMemo(
+    () => !!(accessToken && documentId && companyId && establishmentId),
+    [accessToken, documentId, companyId, establishmentId]
+  );
+
+  const [doc, setDoc] = useState(null);
+  const [versions, setVersions] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  // upload de versão do próprio documento
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+
+  // relacionados (evidências, anexos, etc.)
+  const [evidences, setEvidences] = useState([]);
+  const [loadingEvidences, setLoadingEvidences] = useState(false);
+
+  // modo de relacionamento: 'new' (novo doc + upload) ou 'existing' (relacionar existente)
+  const [evidenceMode, setEvidenceMode] = useState(null);
+
+  // criação rápida de novo documento relacionado
+  const [evName, setEvName] = useState('');
+  const [evDescription, setEvDescription] = useState('');
+  const [evFile, setEvFile] = useState(null);
+  const [savingEvidence, setSavingEvidence] = useState(false);
+  const [evSelectedType, setEvSelectedType] = useState(null);
+
+  // seleção de documento existente para relacionar
+  const [selectedExistingDoc, setSelectedExistingDoc] = useState(null);
+  const [linkingExisting, setLinkingExisting] = useState(false);
+
+  // modal de tipos de documentos (tutorial)
+  const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const [typeModalItems, setTypeModalItems] = useState([]);
+  const [typeModalLoading, setTypeModalLoading] = useState(false);
+  const [typeModalKindFilter, setTypeModalKindFilter] = useState('');
+
+  // modal de documentos existentes do estabelecimento
+  const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [documentModalItems, setDocumentModalItems] = useState([]);
+  const [documentModalLoading, setDocumentModalLoading] = useState(false);
+
+  const currentVersionId = doc?.currentVersionId;
+
+  const fetchDocument = useCallback(async () => {
+    const res = await getDocument(
+      companyId,
+      establishmentId,
+      documentId,
+      accessToken
+    );
+    setDoc(res || null);
+  }, [companyId, establishmentId, documentId, accessToken]);
+
+  const fetchVersions = useCallback(async () => {
+    const res = await listVersions(
+      companyId,
+      establishmentId,
+      documentId,
+      accessToken
+    );
+    const data = res || {};
+    setVersions(data.items || data || []);
+  }, [companyId, establishmentId, documentId, accessToken]);
+
+  const fetchEvidences = useCallback(async () => {
+    if (!accessToken) return;
+    setLoadingEvidences(true);
+    setError('');
+    try {
+      const res = await listRelations(
+        companyId,
+        establishmentId,
+        documentId,
+        { direction: 'parent', relationType: 'EVIDENCE' },
+        accessToken
+      );
+      const data = res || {};
+      const items = data.items || data || [];
+      setEvidences(items);
+    } catch (e) {
+      console.error(e);
+      setError('Failed to load related documents.');
+      setEvidences([]);
+    } finally {
+      setLoadingEvidences(false);
+    }
+  }, [companyId, establishmentId, documentId, accessToken]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    setError('');
+    fetchDocument().catch(() => setError('Failed to load document'));
+    fetchVersions().catch(() => setError('Failed to load versions'));
+    fetchEvidences().catch(() =>
+      setError('Failed to load related documents')
+    );
+  }, [authReady, documentId, fetchDocument, fetchVersions, fetchEvidences]);
+
+  // ---------- Upload de nova versão do próprio documento ----------
+
+  async function handleUploadVersion(e) {
+    e.preventDefault();
+    if (!uploadFile) return;
+    setUploading(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', uploadFile);
+      await uploadVersion(
+        companyId,
+        establishmentId,
+        documentId,
+        fd,
+        accessToken
+      );
+
+      await Promise.all([fetchVersions(), fetchDocument()]);
+      setUploadFile(null);
+      setShowUpload(false);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to upload version');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleActivate(versionId) {
+    setError('');
+    try {
+      await activateVersion(
+        companyId,
+        establishmentId,
+        documentId,
+        versionId,
+        accessToken
+      );
+      await Promise.all([fetchVersions(), fetchDocument()]);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to activate version');
+    }
+  }
+
+  // ---------- IDs de documentos já relacionados (lado "filho") ----------
+
+  const evidenceDocumentIds = useMemo(
+    () =>
+      evidences
+        .map((rel) => rel.toDocumentId || rel.toDocument?.id || null)
+        .filter(Boolean),
+    [evidences]
+  );
+
+  // ---------- Autocomplete de tipos de evidência ----------
+
+  const fetchEvidenceTypes = useCallback(
+    async (query) => {
+      if (!accessToken) return { items: [], total: 0 };
+      const res = await searchDocumentTypes(query, accessToken, {
+        kind: 'EVIDENCE',
+        pageSize: 50,
+      });
+      return {
+        items: res?.items || [],
+        total: res?.total || 0,
+      };
+    },
+    [accessToken]
+  );
+
+  // ---------- Autocomplete de documentos existentes ----------
+
+  const fetchExistingDocuments = useCallback(
+    async (query) => {
+      if (!accessToken) return { items: [], total: 0 };
+      const res = await searchDocuments(
+        companyId,
+        establishmentId,
+        { q: query, pageSize: 50 },
+        accessToken
+      );
+
+      const rawItems = res?.items || [];
+      const usedIds = new Set([documentId, ...evidenceDocumentIds]);
+
+      const filtered = rawItems.filter((d) => !usedIds.has(d.id));
+
+      return {
+        items: filtered,
+        total: filtered.length,
+      };
+    },
+    [companyId, establishmentId, accessToken, documentId, evidenceDocumentIds]
+  );
+
+  // ---------- Modal de tipos de documento ----------
+
+  const openTypeModal = useCallback(async () => {
+    if (!accessToken) {
+      setTypeModalOpen(true);
+      setTypeModalItems([]);
+      return;
+    }
+    setTypeModalOpen(true);
+    setTypeModalLoading(true);
+    try {
+      const res = await searchDocumentTypes('', accessToken, {
+        pageSize: 200,
+      });
+      setTypeModalItems(res?.items || []);
+    } catch (e) {
+      console.error('Failed to load document types for modal', e);
+      setTypeModalItems([]);
+    } finally {
+      setTypeModalLoading(false);
+    }
+  }, [accessToken]);
+
+  const filteredTypeModalItems = typeModalItems.filter((t) =>
+    typeModalKindFilter ? t.kind === typeModalKindFilter : true
+  );
+
+  // ---------- Modal de documentos existentes do estabelecimento ----------
+
+  const openDocumentModal = useCallback(async () => {
+    if (!accessToken) {
+      setDocumentModalOpen(true);
+      setDocumentModalItems([]);
+      return;
+    }
+    setDocumentModalOpen(true);
+    setDocumentModalLoading(true);
+    try {
+      const res = await searchDocuments(
+        companyId,
+        establishmentId,
+        { q: '', pageSize: 200 },
+        accessToken
+      );
+
+      const rawItems = res?.items || [];
+      const usedIds = new Set([documentId, ...evidenceDocumentIds]);
+      const filtered = rawItems.filter((d) => !usedIds.has(d.id));
+
+      setDocumentModalItems(filtered);
+    } catch (e) {
+      console.error('Failed to load documents for modal', e);
+      setDocumentModalItems([]);
+    } finally {
+      setDocumentModalLoading(false);
+    }
+  }, [accessToken, companyId, establishmentId, documentId, evidenceDocumentIds]);
+
+  // ---------- Criação rápida de documento relacionado (evidência) ----------
+
+  async function handleCreateEvidence(e) {
+    e.preventDefault();
+    setError('');
+
+    if (!evFile) {
+      setError('Selecione um arquivo de evidência.');
+      return;
+    }
+    if (!evSelectedType?.id) {
+      setError('Selecione o tipo de documento de evidência.');
+      return;
+    }
+
+    const normalizedName =
+      (evName || '').trim() || evFile.name || 'Evidência';
+
+    const normalizedDescription =
+      (evDescription || '').trim() ||
+      `Evidência vinculada ao documento ${doc?.name || ''}`;
+
+    setSavingEvidence(true);
+
+    try {
+      // 1) Cria documento filho
+      const newDocPayload = {
+        name: normalizedName,
+        typeId: evSelectedType.id,
+        description: normalizedDescription,
+      };
+
+      const childDoc = await createDocument(
+        companyId,
+        establishmentId,
+        newDocPayload,
+        accessToken
+      );
+
+      // 2) Sobe versão
+      const fd = new FormData();
+      fd.append('file', evFile);
+      const version = await uploadVersion(
+        companyId,
+        establishmentId,
+        childDoc.id,
+        fd,
+        accessToken
+      );
+
+      // 3) Tenta ativar a versão
+      try {
+        await activateVersion(
+          companyId,
+          establishmentId,
+          childDoc.id,
+          version.id,
+          accessToken
+        );
+      } catch (errActivate) {
+        console.warn('Failed to auto-activate evidence version', errActivate);
+      }
+
+      // 4) Cria relação MÃE -> EVIDENCE (usa targetDocumentId, alinhado ao backend)
+      await createRelation(
+        companyId,
+        establishmentId,
+        documentId,
+        {
+          relationType: 'EVIDENCE',
+          targetDocumentId: childDoc.id,
+        },
+        accessToken
+      );
+
+      // 5) Refresh
+      await Promise.all([fetchDocument(), fetchVersions(), fetchEvidences()]);
+
+      // limpa estado
+      setEvName('');
+      setEvDescription('');
+      setEvFile(null);
+      setEvSelectedType(null);
+      setEvidenceMode(null);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to create evidence document.');
+    } finally {
+      setSavingEvidence(false);
+    }
+  }
+
+  // ---------- Relacionar documento existente como evidência ----------
+
+  async function handleLinkExisting(e) {
+    e.preventDefault();
+    setError('');
+
+    if (!selectedExistingDoc?.id) {
+      setError('Selecione um documento existente.');
+      return;
+    }
+    if (selectedExistingDoc.id === documentId) {
+      setError('Não é possível relacionar o documento consigo mesmo.');
+      return;
+    }
+
+    setLinkingExisting(true);
+    try {
+      await createRelation(
+        companyId,
+        establishmentId,
+        documentId,
+        {
+          relationType: 'EVIDENCE',
+          targetDocumentId: selectedExistingDoc.id,
+        },
+        accessToken
+      );
+
+      await fetchEvidences();
+      setSelectedExistingDoc(null);
+      setEvidenceMode(null);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to link existing document as evidence.');
+    } finally {
+      setLinkingExisting(false);
+    }
+  }
+
+  if (!documentId) {
+    return <div>Select a document from the list.</div>;
+  }
+
+  const storageBaseHint =
+    versions?.[0]?.storagePath && !versions[0].storagePath.includes('uploads')
+      ? ' (verifique se o backend está servindo /uploads corretamente)'
+      : '';
+
+  return (
+    <div>
+      <h2>Document detail</h2>
+      {error && <div className="error-message">{error}</div>}
+
+      {doc ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div>
+            <strong>Name:</strong> {doc.name}
+          </div>
+          <div>
+            <strong>Type:</strong> {doc.type?.name || doc.typeId}
+          </div>
+          <div>
+            <strong>Status:</strong> {doc.status}
+          </div>
+          <div>
+            <strong>Current version:</strong> {currentVersionId || '—'}
+          </div>
+          {doc.description && (
+            <div>
+              <strong>Description:</strong> {doc.description}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>Loading…</div>
+      )}
+
+      {/* ---------- Seção de versões ---------- */}
+      <section style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 8,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>Versions</h3>
+
+          <ProtectedRoute
+            inline
+            permissions={['documentVersion.create']}
+          >
+            {!showUpload && (
+              <button
+                type="button"
+                onClick={() => setShowUpload(true)}
+                className="secondary"
+              >
+                Upload new version
+              </button>
+            )}
+          </ProtectedRoute>
+        </div>
+
+        {/* Form embutido de upload de nova versão */}
+        {showUpload && (
+          <ProtectedRoute
+            inline
+            permissions={['documentVersion.create']}
+          >
+            <form
+              onSubmit={handleUploadVersion}
+              className="card"
+              style={{ marginBottom: 12, padding: 12 }}
+            >
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ marginBottom: 4 }}>File</div>
+                <FileDropzone onFile={(file) => setUploadFile(file)} />
+              </div>
+              {uploadFile && (
+                <div style={{ marginBottom: 8, fontSize: 13 }}>
+                  Selected:{' '}
+                  <strong>{uploadFile.name}</strong> ({uploadFile.size}{' '}
+                  bytes)
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={uploading || !uploadFile}>
+                  {uploading ? 'Uploading…' : 'Upload'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowUpload(false);
+                    setUploadFile(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </ProtectedRoute>
+        )}
+
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Filename</th>
+              <th>Status</th>
+              <th>Size</th>
+              <th>SHA-256</th>
+              <th>Uploaded by</th>
+              <th>Activated at</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(versions || []).map((v) => {
+              const fileUrl = resolveFileUrl(v);
+              return (
+                <tr
+                  key={v.id}
+                  className={v.id === currentVersionId ? 'row-highlight' : ''}
+                >
+                  <td>{v.versionNumber}</td>
+                  <td>{v.filename}</td>
+                  <td>{v.versionStatus}</td>
+                  <td>{v.size}</td>
+                  <td
+                    style={{
+                      maxWidth: 260,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {v.sha256}
+                  </td>
+                  <td>{v.uploadedBy?.name || v.uploadedByUserId || '—'}</td>
+                  <td>
+                    {v.activatedAt
+                      ? new Date(v.activatedAt).toLocaleString()
+                      : '—'}
+                  </td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    {fileUrl && (
+                      <>
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="secondary"
+                        >
+                          View
+                        </a>
+                        <a
+                          href={fileUrl}
+                          download={v.filename}
+                          className="secondary"
+                        >
+                          Download
+                        </a>
+                      </>
+                    )}
+
+                    <ProtectedRoute
+                      inline
+                      permissions={['documentVersion.activate']}
+                    >
+                      {currentVersionId !== v.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleActivate(v.id)}
+                        >
+                          Activate
+                        </button>
+                      )}
+                    </ProtectedRoute>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {!versions?.length && (
+          <div style={{ marginTop: 8, fontSize: 13 }}>
+            No versions yet. Use &quot;Upload new version&quot; to send
+            the first file.
+            {storageBaseHint}
+          </div>
+        )}
+      </section>
+
+      {/* ---------- Seção de documentos relacionados (evidências / anexos) ---------- */}
+      <section>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <h3 style={{ margin: 0 }}>Related documents (evidences, annexes)</h3>
+
+          <ProtectedRoute
+            inline
+            permissions={['document.create', 'documentVersion.create']}
+          >
+            <button
+              type="button"
+              className={
+                'secondary' + (evidenceMode === 'new' ? ' primary-outline' : '')
+              }
+              onClick={() => setEvidenceMode('new')}
+            >
+              Upload new related document
+            </button>
+          </ProtectedRoute>
+
+          <ProtectedRoute inline permissions={['document.read']}>
+            <button
+              type="button"
+              className={
+                'secondary' +
+                (evidenceMode === 'existing' ? ' primary-outline' : '')
+              }
+              onClick={() => setEvidenceMode('existing')}
+            >
+              Link existing document
+            </button>
+          </ProtectedRoute>
+        </div>
+
+        {/* --- Modo: novo documento relacionado --- */}
+        {evidenceMode === 'new' && (
+          <ProtectedRoute
+            inline
+            permissions={['document.create', 'documentVersion.create']}
+          >
+            <form
+              onSubmit={handleCreateEvidence}
+              className="card"
+              style={{ marginBottom: 12, padding: 12 }}
+            >
+              <div className="grid-2">
+                <div>
+                  <label>
+                    Related document name (optional)
+                    <input
+                      type="text"
+                      placeholder="If empty, file name will be used"
+                      value={evName}
+                      onChange={(e) => setEvName(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <div>
+                  <AutocompleteSelect
+                    label="Related Document Type"
+                    value={evSelectedType}
+                    onChange={(item) => {
+                      setEvSelectedType(item || null);
+                    }}
+                    fetcher={fetchEvidenceTypes}
+                    getKey={(it) => it.id}
+                    getLabel={(it) =>
+                      `${it.name}${
+                        it.kind ? ` (${it.kind.toLowerCase()})` : ''
+                      }`
+                    }
+                    placeholder="Search document types..."
+                    minChars={0}
+                    disabled={!accessToken}
+                  />
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 8,
+                      alignItems: 'center',
+                      marginTop: 4,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={openTypeModal}
+                    >
+                      View all document types
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8 }}>
+                <label>
+                  Description
+                  <textarea
+                    rows={3}
+                    placeholder="Describe the evidence, NR, contexto, etc."
+                    value={evDescription}
+                    onChange={(e) => setEvDescription(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div style={{ marginTop: 8 }}>
+                <div style={{ marginBottom: 4 }}>File</div>
+                <FileDropzone onFile={(file) => setEvFile(file)} />
+              </div>
+              {evFile && (
+                <div style={{ marginTop: 4, fontSize: 13 }}>
+                  Selected:{' '}
+                  <strong>{evFile.name}</strong> ({evFile.size} bytes)
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button
+                  type="submit"
+                  disabled={savingEvidence || !evFile || !evSelectedType?.id}
+                >
+                  {savingEvidence ? 'Saving…' : 'Save related document'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEvidenceMode(null);
+                    setEvName('');
+                    setEvDescription('');
+                    setEvFile(null);
+                    setEvSelectedType(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </ProtectedRoute>
+        )}
+
+        {/* --- Modo: relacionar documento existente --- */}
+        {evidenceMode === 'existing' && (
+          <ProtectedRoute inline permissions={['document.read']}>
+            <form
+              onSubmit={handleLinkExisting}
+              className="card"
+              style={{ marginBottom: 12, padding: 12 }}
+            >
+              <div className="grid-2">
+                <div>
+                  <AutocompleteSelect
+                    label="Existing document"
+                    value={selectedExistingDoc}
+                    onChange={(item) => setSelectedExistingDoc(item || null)}
+                    fetcher={fetchExistingDocuments}
+                    getKey={(it) => it.id}
+                    getLabel={(it) =>
+                      `${it.name}${
+                        it.type?.name ? ` – ${it.type.name}` : ''
+                      }`
+                    }
+                    placeholder="Search documents in this establishment..."
+                    minChars={0}
+                    disabled={!accessToken}
+                  />
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ marginTop: 22 }}
+                    onClick={openDocumentModal}
+                  >
+                    View all documents
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+                Use esta opção quando o documento de evidência já foi
+                cadastrado/uploadado e você só quer relacioná-lo como
+                evidência/relacionado deste documento.
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button
+                  type="submit"
+                  disabled={linkingExisting || !selectedExistingDoc?.id}
+                >
+                  {linkingExisting ? 'Linking…' : 'Link as related'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEvidenceMode(null);
+                    setSelectedExistingDoc(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </ProtectedRoute>
+        )}
+
+        {/* Lista de documentos relacionados */}
+        {loadingEvidences ? (
+          <div>Loading related documents…</div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Current version</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {evidences.map((rel) => {
+                // direction = 'parent' => este doc é fromDocument, o relacionado é toDocument
+                const child = rel.toDocument || null;
+
+                return (
+                  <tr key={rel.id}>
+                    <td>{child?.name || rel.toDocumentId || '—'}</td>
+                    <td>{child?.type?.name || child?.typeId || '—'}</td>
+                    <td>{child?.status || '—'}</td>
+                    <td>
+                      {child?.currentVersion?.versionNumber != null
+                        ? `v${child.currentVersion.versionNumber}`
+                        : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {child?.id && (
+                        <Link
+                          to={`/companies/${companyId}/establishments/${establishmentId}/documents/${child.id}`}
+                          style={{ marginRight: 8 }}
+                        >
+                          Open
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {!evidences.length && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center' }}>
+                    No related documents for this record yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ---------- Modal de tipos de documento ---------- */}
+      {typeModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 8,
+              padding: 16,
+              width: '90%',
+              maxWidth: 900,
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>Document Types (tutorial)</h3>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setTypeModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                marginBottom: 8,
+                color: '#555',
+              }}
+            >
+              Lista de todos os tipos de documento cadastrados. Clique em
+              uma linha para selecionar esse tipo como tipo do documento
+              relacionado ou para entender a taxonomia.
+            </div>
+
+            {/* Filtro por kind dentro do modal */}
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                marginBottom: 8,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ fontSize: 13, color: '#555' }}>
+                Filter by kind:
+              </span>
+              <button
+                type="button"
+                className={
+                  'secondary' +
+                  (!typeModalKindFilter ? ' primary-outline' : '')
+                }
+                onClick={() => setTypeModalKindFilter('')}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={
+                  'secondary' +
+                  (typeModalKindFilter === 'MAIN'
+                    ? ' primary-outline'
+                    : '')
+                }
+                onClick={() => setTypeModalKindFilter('MAIN')}
+              >
+                MAIN
+              </button>
+              <button
+                type="button"
+                className={
+                  'secondary' +
+                  (typeModalKindFilter === 'EVIDENCE'
+                    ? ' primary-outline'
+                    : '')
+                }
+                onClick={() => setTypeModalKindFilter('EVIDENCE')}
+              >
+                EVIDENCE
+              </button>
+              <button
+                type="button"
+                className={
+                  'secondary' +
+                  (typeModalKindFilter === 'SECONDARY'
+                    ? ' primary-outline'
+                    : '')
+                }
+                onClick={() => setTypeModalKindFilter('SECONDARY')}
+              >
+                SECONDARY
+              </button>
+              <button
+                type="button"
+                className={
+                  'secondary' +
+                  (typeModalKindFilter === 'OTHER'
+                    ? ' primary-outline'
+                    : '')
+                }
+                onClick={() => setTypeModalKindFilter('OTHER')}
+              >
+                OTHER
+              </button>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                border: '1px solid #eee',
+                borderRadius: 4,
+              }}
+            >
+              {typeModalLoading ? (
+                <div style={{ padding: 12 }}>Loading types…</div>
+              ) : (
+                <table className="data-table" style={{ margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Kind</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTypeModalItems.map((t) => (
+                      <tr
+                        key={t.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          setEvSelectedType(t);
+                          setTypeModalOpen(false);
+                          setEvidenceMode('new');
+                        }}
+                      >
+                        <td>{t.name}</td>
+                        <td>{t.kind || '—'}</td>
+                        <td>{t.description || '—'}</td>
+                      </tr>
+                    ))}
+                    {!filteredTypeModalItems.length && (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: 'center' }}>
+                          No document types found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal de documentos existentes ---------- */}
+      {documentModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 8,
+              padding: 16,
+              width: '90%',
+              maxWidth: 900,
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>
+                Documents in this establishment
+              </h3>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setDocumentModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                marginBottom: 8,
+                color: '#555',
+              }}
+            >
+              Lista de todos os documentos deste estabelecimento. Clique
+              em uma linha para selecioná-lo como documento relacionado
+              (modo &quot;Link existing document&quot;).
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                border: '1px solid #eee',
+                borderRadius: 4,
+              }}
+            >
+              {documentModalLoading ? (
+                <div style={{ padding: 12 }}>Loading documents…</div>
+              ) : (
+                <table className="data-table" style={{ margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Current version</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documentModalItems.map((d) => (
+                      <tr
+                        key={d.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          setSelectedExistingDoc(d);
+                          setDocumentModalOpen(false);
+                          setEvidenceMode('existing');
+                        }}
+                      >
+                        <td>{d.name}</td>
+                        <td>{d.type?.name || d.typeId || '—'}</td>
+                        <td>{d.status || '—'}</td>
+                        <td>
+                          {d.currentVersion?.versionNumber != null
+                            ? `v${d.currentVersion.versionNumber}`
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    {!documentModalItems.length && (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center' }}>
+                          No documents found for this establishment.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

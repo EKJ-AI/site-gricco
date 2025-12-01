@@ -1,0 +1,28 @@
+.banner {
+    padding-top: 100px;
+    background-image: url('../../../shared/assets/images/home/home-001.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height:800px;
+}
+.banner * {
+    color:#fff;
+}
+
+.banner .conteudo-interno {
+    height: 100%;
+    align-content: center;
+}
+
+@media (min-width: 1400px) {
+    .banner {
+        background-size: 100%;
+    }
+}
+
+@media (max-width:767px){
+    .banner {
+        height: 600px;
+    }
+}

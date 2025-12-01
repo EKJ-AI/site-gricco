@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import "../styles/Carousel.css";
+import "./Carousel.css";
 import { useTranslation } from "../../../shared/i18n";
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 
@@ -17,11 +17,11 @@ export default function Carousel() {
   const navigate = useNavigate();
 
   const slides = [
-    { id: 1, image: slide1, title: t("carousel_slide1_title"), description: t("carousel_slide1_subtitle"), route: "qsms" },
-    { id: 2, image: slide2, title: t("carousel_slide2_title"), description: t("carousel_slide2_subtitle"), route: "sustainability" },
-    { id: 3, image: slide3, title: t("carousel_slide3_title"), description: t("carousel_slide3_subtitle"), route: "business" },
-    { id: 4, image: slide4, title: t("carousel_slide4_title"), description: t("carousel_slide4_subtitle"), route: "qsmsmanagement" },
-    { id: 5, image: slide5, title: t("carousel_slide5_title"), description: t("carousel_slide5_subtitle"), route: "offshore" },
+    { id: 1, image: slide1, title: t("carousel.slide1.title"), description: t("carousel.slide1.subtitle"), route: "qsms" },
+    { id: 2, image: slide2, title: t("carousel.slide2.title"), description: t("carousel.slide2.subtitle"), route: "sustainability" },
+    { id: 3, image: slide3, title: t("carousel.slide3.title"), description: t("carousel.slide3.subtitle"), route: "business" },
+    { id: 4, image: slide4, title: t("carousel.slide4.title"), description: t("carousel.slide4.subtitle"), route: "qsmsmanagement" },
+    { id: 5, image: slide5, title: t("carousel.slide5.title"), description: t("carousel.slide5.subtitle"), route: "offshore" },
     ];
 
   useEffect(() => {
@@ -46,6 +46,7 @@ export default function Carousel() {
 
   return (
     <div className="carousel-wrapper">
+        <div className="rotulo"><h4>{t("home.approach")}</h4></div>
         <div className="carousel">
             <div className="slides" style={{ transform: `translateX(-${current * 100}%)` }}>
                 {slides.map(({ id, image, alt, title, description, route }) => (
@@ -54,7 +55,7 @@ export default function Carousel() {
                         <div className="overlay">
                             <h2>{title}</h2>
                             <p>{description}</p>
-                            <button className="cta-button" onClick={() => navigate(`/${route}`)}>{t("carousel_button_text")}</button>
+                            <button className="cta-button" onClick={() => navigate(`/${route}`)}>{t("carousel.button.text")}</button>
                         </div>
                     </div>
                     ))}

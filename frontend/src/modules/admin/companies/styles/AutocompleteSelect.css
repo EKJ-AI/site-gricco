@@ -1,0 +1,16 @@
+.auto-wrap { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.auto-label { font-weight: 600; }
+.auto-selected { position: relative; }
+.auto-selected input { width: 100%; padding: 8px 10px; }
+.auto-pill {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 6px; align-items: center; background: #f3f3f3; border-radius: 14px; padding: 2px 8px;
+}
+.auto-pill button { border: none; background: transparent; cursor: pointer; }
+.auto-menu {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: white; border: 1px solid #ddd;
+  max-height: 220px; overflow: auto;
+}
+.auto-item { padding: 8px 10px; cursor: pointer; }
+.auto-item:hover { background: #f5f5f5; }
+.auto-item.muted { color: #777; cursor: default; }

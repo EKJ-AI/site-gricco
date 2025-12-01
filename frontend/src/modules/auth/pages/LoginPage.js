@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../../../api/axios';
 import { useTranslation } from '../../../shared/i18n';
 import "../styles/Login.css"
+import { useLayout } from '../../../shared/contexts/LayoutContext';
+import btnVoltar from "../../../shared/assets/images/btnVoltar.svg"
+import iconFacebook from '../../../shared/assets/images/iconFacebook.svg';
+import iconInstagram from '../../../shared/assets/images/iconInstagram.svg';
+import iconYoutube from '../../../shared/assets/images/iconYoutube.svg';
+import iconLinkedin from '../../../shared/assets/images/iconLinkedin.svg';
+import logo from '../../../shared/assets/images/lgGricco_bluedark.svg';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -13,19 +20,37 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
+  const { setLayout, resetLayout } = useLayout();
+
+  useEffect(() => {
+      // ao entrar na página
+      setLayout({
+        transparentNavbar: false,
+        pageTitle: t('Login'),   // título na topbar
+        showTopBar: false,
+        showBottomBar: false,
+        showLeftSidebar: true,
+        showRightPanel: true,        // ex.: painel lateral com filtros
+      });
+  
+      // ao sair da página (volta pro default)
+      return () => {
+        resetLayout();
+      };
+    }, [setLayout, resetLayout, t]);
 
   // ✅ Validação forte
   const validate = () => {
     if (!email.includes('@')) {
-      setError(t('invalid_email'));
+      setError(t('invalid.email'));
       return false;
     }
     if (!password) {
-      setError(t('password_required'));
+      setError(t('password.required'));
       return false;
     }
     if (password.length < 8) {
-      setError(t('password_too_short'));
+      setError(t('password.too.short'));
       return false;
     }
     return true;
@@ -60,41 +85,61 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="page-wrapper">
-    <div className="form-container">
-      <h2>{t('login')}</h2>
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-group">
-          <label htmlFor="email">{t('contact_form_mail')}</label>
-          <input
-            type="email"
-            placeholder={t("contact_form_mail_placeholder")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+    <div className="login">
+      <div className='lgGricco'></div>
+      <div className="login-form">
+        <div className='login-barra-superior'>
+          <div className='login-voltar'>
+            <Link to="/">
+              <img src={btnVoltar} alt='Voltar ao site da Gricco' />
+            </Link>            
+          </div>
+          <div className='login-redes-sociais'>
+            <img src={iconFacebook} alt="" />
+            <img src={iconInstagram} alt="" />
+            <img src={iconYoutube} alt="" />
+            <img src={iconLinkedin} alt="" />
+          </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="password">{t('password_label')}</label>
-          <input
-            type="password"
-            placeholder={t('password_placeholder')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+        <div className='login-inputs'>
+            <h2>{t('login')}</h2>
+            <form onSubmit={handleSubmit} className="form">
+              <div className="form-group">
+                {/* <label htmlFor="email">{t('contact.form.mail')}</label> */}
+                <input
+                  type="email"
+                  placeholder={t("contact.form.mail.placeholder")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                {/* <label htmlFor="password">{t('password.label')}</label> */}
+                <input
+                  type="password"
+                  placeholder={t('password.placeholder')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+                <button type="submit" disabled={loading}>
+                  {loading ? t('loading') : t('login.btnEnter')}
+                </button>
+              {error && <div className="error-message">{error}</div>}
+              <div className="forgot-password-link">
+                <Link to="/forgot-password">
+                  {t('forgot.password') || 'Esqueci minha senha'}
+                </Link>
+              </div>
+            </form>
         </div>
-          <button type="submit" disabled={loading}>
-            {loading ? t('loading') : t('login')}
-          </button>
-        {error && <div className="error-message">{error}</div>}
-        <div className="forgot-password-link">
-          <Link to="/forgot-password">
-            {t('forgot_password') || 'Esqueci minha senha'}
-          </Link>
+        <div className='login-barra-inferior'>
+          <img src={logo} alt={t("footer_logo_alt")} />
+          <p>{t("footer.copyright")}</p>
         </div>
-      </form>
-    </div>
+      </div>
     </div>
   );
 }

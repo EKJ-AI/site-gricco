@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import '../../../shared/styles/Form.css';
 import '../../../shared/styles/Table.css';
 import { useAuth } from '../../auth/contexts/AuthContext';
-import Navbar from '../../../shared/components/NavbarOLD';
 import api from '../../../api/axios';
 
 export default function ProfilesPage() {
@@ -23,7 +22,6 @@ export default function ProfilesPage() {
   const fetchProfiles = async () => {
     try {
       const res = await api.get('/api/profiles', authHeader);
-      // Espera-se que venha: data.data.items -> [{ id, name, description, permissions: [{id, name}] }]
       setProfiles(res.data?.data?.items || []);
     } catch {
       setError('Erro ao carregar perfis.');
@@ -32,8 +30,11 @@ export default function ProfilesPage() {
 
   const fetchPermissions = async () => {
     try {
-      const res = await api.get('/api/permissions', authHeader);
-      // Espera-se que venha: data.data.items -> [{ id, name }]
+      // ✅ pega todas as permissões sem paginação
+      const res = await api.get('/api/permissions', {
+        ...authHeader,
+        params: { all: 1 },
+      });
       setPermissions(res.data?.data?.items || []);
     } catch {
       setError('Erro ao carregar permissões.');
@@ -78,7 +79,6 @@ export default function ProfilesPage() {
   };
 
   const handleEditClick = async (profile) => {
-    // Garante que o catálogo de permissões está carregado
     if (!permissions || permissions.length === 0) {
       try {
         await fetchPermissions();
@@ -93,7 +93,6 @@ export default function ProfilesPage() {
     setName(profile.name || '');
     setDescription(profile.description || '');
 
-    // Agora a API devolve permissions como objetos { id, name }
     const ids = (profile.permissions || [])
       .map((pp) => (typeof pp === 'object' && pp?.id ? pp.id : null))
       .filter(Boolean);
@@ -134,7 +133,6 @@ export default function ProfilesPage() {
 
   return (
     <div>
-      <Navbar />
       <h2>Perfis</h2>
 
       {error && <div className="error-message">{error}</div>}

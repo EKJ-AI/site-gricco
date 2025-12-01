@@ -18,51 +18,51 @@ export const sustainability = {
 };
 
 export const qsms = {
-  title: "qsms_title",
-  description: "qsms_description",
+  title: "qsms.title",
+  description: "qsms.description",
   services: [
-    { title: "qsms_nr", description: "qsms_nr_desc" },
-    { title: "qsms_audit", description: "qsms_audit_desc" },
-    { title: "qsms_section", description: "qsms_section_desc" },
+    { title: "qsms.nr", description: "qsms.nr.desc" },
+    { title: "qsms.audit", description: "qsms.audit.desc" },
+    { title: "qsms.section", description: "qsms.section.desc" },
   ],
   image: slide1,
   color: "#DA6705"
 };
 
 export const business = {
-  title: "business_title",
-  description: "business_description",
+  title: "business.title",
+  description: "business.description",
   services: [
-    { title: "business_card1_title", description: "business_card1_desc" },
-    { title: "business_card2_title", description: "business_card2_desc" },
-    { title: "business_card3_title", description: "business_card3_desc" },
-    { title: "business_card4_title", description: "business_card4_desc" }
+    { title: "business.card1.title", description: "business.card1.desc" },
+    { title: "business.card2.title", description: "business.card2.desc" },
+    { title: "business.card3.title", description: "business.card3.desc" },
+    { title: "business.card4.title", description: "business.card4.desc" }
   ],
   image: slide3,
   color: "#DA6705"
 };
 
 export const qsmsmanagement = {
-  title: "qsmsmanagement_title",
-  description: "qsmsmanagement_description",
+  title: "qsmsmanagement.title",
+  description: "qsqsmsmanagement.description",
   services: [
-    { title: "qsmsmanagement_card1_title", description: "qsmsmanagement_card1_desc" },
-    { title: "qsmsmanagement_card1_title", description: "qsmsmanagement_card1_desc" },
-    { title: "qsmsmanagement_card1_title", description: "qsmsmanagement_card1_desc" },
-    { title: "qsmsmanagement_card1_title", description: "qsmsmanagement_card1_desc" }
+    { title: "qsmsmanagement.card1.title", description: "qsmsmanagement.card1.desc" },
+    { title: "qsmsmanagement.card1.title", description: "qsmsmanagement.card1.desc" },
+    { title: "qsmsmanagement.card1.title", description: "qsmsmanagement.card1.desc" },
+    { title: "qsmsmanagement.card1.title", description: "qsmsmanagement.card1.desc" }
   ],
   image: slide4,
   color: "#DA6705"
 };  
 
 export const offshore = {
-  title: "offshore_title",
-  description: "offshore_description",
+  title: "offshore.title",
+  description: "offshore.description",
   services: [
-    { title: "offshore_card1_title", description: "offshore_card1_desc" },
-    { title: "offshore_card1_title", description: "offshore_card1_desc" },
-    { title: "offshore_card1_title", description: "offshore_card1_desc" },
-    { title: "offshore_card1_title", description: "offshore_card1_desc" }
+    { title: "offshore.card1.title", description: "offshore.card1.desc" },
+    { title: "offshore.card1.title", description: "offshore.card1.desc" },
+    { title: "offshore.card1.title", description: "offshore.card1.desc" },
+    { title: "offshore.card1.title", description: "offshore.card1.desc" }
   ],
   image: slide5,
   color: "#DA6705"

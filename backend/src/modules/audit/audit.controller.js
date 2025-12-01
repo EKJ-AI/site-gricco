@@ -1,5 +1,7 @@
+import { parsePagination } from '../../infra/http/pagination.js';
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
+import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
 
 export async function list(req, res) {
   try {
@@ -25,6 +27,8 @@ export async function list(req, res) {
     });
   } catch (error) {
     logger.error(`[AUDIT] Erro ao listar logs: ${error.message}`, error);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar logs de auditoria.'
@@ -61,6 +65,8 @@ export async function create(req, res) {
     });
   } catch (error) {
     logger.error(`[AUDIT] Erro ao criar log: ${error.message}`, error);
+      const mapped = prismaErrorToHttp(err);
+    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({
       success: false,
       message: 'Erro ao registrar log de auditoria.'

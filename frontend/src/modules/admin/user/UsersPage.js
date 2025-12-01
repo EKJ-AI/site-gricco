@@ -4,7 +4,6 @@ import '../../../shared/styles/Table.css';
 import '../../../shared/styles/Form.css';
 import api from '../../../api/axios';
 import { useAuth } from '../../auth/contexts/AuthContext';
-import Navbar from '../../../shared/components/NavbarOLD';
 import ActionButtons from '../../../shared/components/ActionButtons';
 
 export default function UsersPage() {
@@ -90,7 +89,6 @@ export default function UsersPage() {
 
   return (
     <div>
-      <Navbar />
       <h2>Usuários</h2>
       {error && <div className="error-message">{error}</div>}
 

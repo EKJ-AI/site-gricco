@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect} from "react";
 import "./styles/About.css";
 import "./styles/Compliance.css";
 import { useTranslation } from "../../shared/i18n";
@@ -6,9 +6,28 @@ import { useTranslation } from "../../shared/i18n";
 import slide1 from '../../shared/assets/images/about/PoliticaCompliance.jpg';
 import parse from 'html-react-parser';
 import EmailForm from '../../shared/components/Formulario.js';
+import { useLayout } from '../../shared/contexts/LayoutContext';
+import FormularioSimples from "../../shared/components/FormularioSimples.js";
 
 export default function Compliance({ title, description, services, image, color }) {
   const { t } = useTranslation();
+  const { setLayout, resetLayout } = useLayout();
+  
+    useEffect(() => {
+      // ao entrar na página
+      setLayout({
+        transparentNavbar: false,
+        pageTitle: t('dashboard'),   // título na topbar
+        showTopBar: true,
+        showLeftSidebar: true,
+        showRightPanel: true,        // ex.: painel lateral com filtros
+      });
+  
+      // ao sair da página (volta pro default)
+      return () => {
+        resetLayout();
+      };
+    }, [setLayout, resetLayout, t]);
 
   const compliance = {
     title: "policy.compliance.ethic",
@@ -37,11 +56,11 @@ export default function Compliance({ title, description, services, image, color 
       >
         <h1>{t(compliance.title)}</h1>
         <p>{t(compliance.description)}</p>
-        {/* <button className="about-button">{t('services_button')}</button> */}
+        {/* <button className="about-button">{t('services.button')}</button> */}
       </header>
 
-      <section className="about-section">
-        {/* <h2>{t('services_subtitle')}</h2> */}
+      <section className="conteudo-interno">
+        {/* <h2>{t('services.subtitle')}</h2> */}
         <div className="about-cards" style={{'--dynamic-color': compliance.color, display: 'block'}}>
           {
             // html(doc.body.querySelector('*'))
@@ -50,7 +69,8 @@ export default function Compliance({ title, description, services, image, color 
         </div>
       </section>
       <section className="conteudo">
-        <EmailForm />
+        {/* <EmailForm /> */}
+        <FormularioSimples />
       </section>
     </div>
   );

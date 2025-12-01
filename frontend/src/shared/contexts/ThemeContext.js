@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import Navbar from '../components/layouts/Navbar';
+import Footer from '../components/layouts/Footer';
 
 const ThemeContext = createContext();
 
