@@ -54,12 +54,12 @@ export default function Navbar() {
           </RequirePermission>
         </li>
         <li>
-          <RequirePermission permission="logs.read">
+          <RequirePermission permission="audit.read">
             <Link to="/audit">Logs</Link>
           </RequirePermission>
         </li>
         <li>
-          <RequirePermission permission="logs.read">
+          <RequirePermission permission="audit.read">
             <Link to="/settings">{t('settings')}</Link>
           </RequirePermission>
         </li>        

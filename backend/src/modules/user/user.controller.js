@@ -14,17 +14,20 @@ export async function getMe(req, res) {
       include: {
         profile: {
           include: {
-            permissions: { include: { permission: true } }
-          }
-        }
-      }
+            permissions: { include: { permission: true } },
+          },
+        },
+      },
     });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
     }
 
-    const permissions = user.profile.permissions.map(p => p.permission.name);
+    const permissions = user.profile.permissions.map((p) => p.permission.name);
+
+    // 👇 NOVO
+    const portalContext = await getPortalContextForUser(user.id);
 
     res.json({
       success: true,
@@ -36,14 +39,19 @@ export async function getMe(req, res) {
         profile: {
           id: user.profile.id,
           name: user.profile.name,
-          permissions
-        }
-      }
+          permissions,
+        },
+      },
+      portalContext, // 👈 NOVO
     });
   } catch (error) {
     logger.error(`Erro em getMe: ${error.message}`, error);
-      const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    const mapped = prismaErrorToHttp(error);
+    if (mapped) {
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
+    }
     res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
@@ -59,15 +67,15 @@ export async function list(req, res) {
         skip: skip,
         take: take,
         include: { profile: true },
-        orderBy: { createdAt: 'desc' }
-      })
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
-    const result = users.map(u => ({
+    const result = users.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
-      profile: u.profile?.name
+      profile: u.profile?.name,
     }));
 
     res.json({
@@ -76,15 +84,16 @@ export async function list(req, res) {
         total,
         page,
         pageSize,
-        items: result
-      }
+        items: result,
+      },
     });
-  }
-  catch (err) {
-    
+  } catch (err) {
     logger.error(`Erro ao listar usuários: ${err.message}`, err);
-      const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    const mapped = prismaErrorToHttp(err);
+    if (mapped)
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
     res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }

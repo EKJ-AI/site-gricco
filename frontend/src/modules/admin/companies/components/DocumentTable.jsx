@@ -1,7 +1,6 @@
-// src/modules/admin/companies/components/DocumentTable.jsx
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function DocumentTable({ rows = [], onDelete }) {
   const { companyId, establishmentId } = useParams();
@@ -45,28 +44,35 @@ export default function DocumentTable({ rows = [], onDelete }) {
             </td>
             <td>{d.evidencesCount ?? 0}</td>
             <td style={{ textAlign: 'right' }}>
-              <Link
-                style={{ marginRight: 8 }}
-                to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}/edit`}
-              >
-                Edit
-              </Link>
+              {/* Editar documento → precisa document.update */}
+              <RequirePermission permissions={['document.update']}>
+                <Link
+                  style={{ marginRight: 8 }}
+                  to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}/edit`}
+                >
+                  Edit
+                </Link>
+              </RequirePermission>
 
-              <Link
-                style={{ marginRight: 8 }}
-                to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}/versions/new`}
-              >
-                Upload Version
-              </Link>
+              {/* Upload de nova versão → precisa documentVersion.create */}
+              <RequirePermission permissions={['documentVersion.create']}>
+                <Link
+                  style={{ marginRight: 8 }}
+                  to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}/versions/new`}
+                >
+                  Upload Version
+                </Link>
+              </RequirePermission>
 
-              <ProtectedRoute inline permissions={['document.delete']}>
+              {/* Delete → precisa document.delete */}
+              <RequirePermission permissions={['document.delete']}>
                 <button
                   type="button"
                   onClick={() => onDelete?.(d.id)}
                 >
                   Delete
                 </button>
-              </ProtectedRoute>
+              </RequirePermission>
             </td>
           </tr>
         ))}

@@ -3,6 +3,12 @@ import prisma from '../../../../../prisma/client.js';
 import { parsePagination } from '../../../../infra/http/pagination.js';
 import { prismaErrorToHttp } from '../../../../infra/http/prismaError.js';
 import { registerAudit } from '../../../../utils/audit.js';
+import {
+  resolveEstablishmentAccess,
+  resolveDocumentAccess,
+  canReadDocs,
+  canWriteDocs,
+} from './document.access.js';
 
 /**
  * Lista relações de um documento
@@ -11,12 +17,27 @@ import { registerAudit } from '../../../../utils/audit.js';
  *  - child: toDocumentId = documentId
  *  - all: qualquer relação onde esse doc está envolvido
  * relationType: opcional (EVIDENCE, SUPPORTING, REPLACES, DERIVED_FROM)
+ *
+ * IMPORTANTE:
+ *  - Autorização de leitura já foi garantida pelo middleware ensureDocumentAccess({ mode: 'read' })
  */
 export async function list(req, res) {
   try {
     const { documentId } = req.params;
     const { direction = 'parent', relationType } = req.query;
     const { skip, take, page, pageSize } = parsePagination(req);
+
+    // garante que o documento existe (middleware já checou permissão)
+    const doc = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { id: true },
+    });
+
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found' });
+    }
 
     const where = {};
 
@@ -57,9 +78,7 @@ export async function list(req, res) {
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
-      return res
-        .status(mapped.status)
-        .json({ success: false, ...mapped });
+      return res.status(mapped.status).json({ success: false, ...mapped });
     }
     return res
       .status(500)
@@ -169,6 +188,18 @@ export async function create(req, res) {
       });
     }
 
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      establishmentId,
+    );
+    if (!canWriteDocs(access)) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'Forbidden (no write access to documents for this establishment)',
+      });
+    }
+
     const created = await prisma.documentRelation.create({
       data: {
         fromDocumentId: documentId,
@@ -197,9 +228,7 @@ export async function create(req, res) {
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
-      return res
-        .status(mapped.status)
-        .json({ success: false, ...mapped });
+      return res.status(mapped.status).json({ success: false, ...mapped });
     }
     return res
       .status(500)
@@ -237,6 +266,20 @@ export async function remove(req, res) {
       });
     }
 
+    // descobre qual documento é o “da rota”
+    const docId =
+      rel.fromDocumentId === documentId
+        ? rel.fromDocumentId
+        : rel.toDocumentId;
+
+    const { doc, access } = await resolveDocumentAccess(req.user, docId);
+    if (!doc || !canWriteDocs(access)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden (no write access to this document)',
+      });
+    }
+
     await prisma.documentRelation.delete({
       where: { id: relationId },
     });
@@ -260,9 +303,7 @@ export async function remove(req, res) {
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
-      return res
-        .status(mapped.status)
-        .json({ success: false, ...mapped });
+      return res.status(mapped.status).json({ success: false, ...mapped });
     }
     return res
       .status(500)

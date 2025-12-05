@@ -1,4 +1,3 @@
-// src/modules/admin/companies/pages/DocumentDetail.jsx
 import React, {
   useEffect,
   useMemo,
@@ -7,7 +6,7 @@ import React, {
 } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import {
   getDocument,
   listVersions,
@@ -18,45 +17,10 @@ import {
   createRelation,
   searchDocumentTypes,
   searchDocuments,
+  buildDocumentFileUrl,
 } from '../api/documents';
 import AutocompleteSelect from '../components/AutocompleteSelect.jsx';
 import FileDropzone from '../components/FileDropzone.jsx';
-import api from '../../../../api/axios';
-
-// Helper para montar URL absoluta do arquivo no backend,
-// independente de porta ou ambiente.
-function resolveFileUrl(version) {
-  if (!version?.storagePath) return null;
-
-  const storagePath = version.storagePath.trim();
-
-  // Já é URL absoluta? Deixa como está.
-  if (/^https?:\/\//i.test(storagePath)) {
-    return storagePath;
-  }
-
-  // Base do backend, ex.: http://localhost:3000/api
-  const baseURL = api.defaults.baseURL || '';
-  // Remove /api ou /api/ do final para ficar só host do backend
-  const backendOrigin = baseURL.replace(/\/api\/?$/, '');
-
-  // Normaliza o path de arquivos
-  let pathPart = storagePath;
-
-  // Se já for /uploads/... usamos direto
-  if (pathPart.startsWith('/uploads/')) {
-    return `${backendOrigin}${pathPart}`;
-  }
-
-  // Se for "uploads/..." sem barra inicial
-  if (pathPart.startsWith('uploads/')) {
-    return `${backendOrigin}/${pathPart}`;
-  }
-
-  // Qualquer outro caso: prefixa com /uploads/
-  pathPart = pathPart.replace(/^\/+/, ''); // tira barras no começo
-  return `${backendOrigin}/uploads/${pathPart}`;
-}
 
 export default function DocumentDetail() {
   const { companyId, establishmentId, documentId } = useParams();
@@ -137,7 +101,7 @@ export default function DocumentDetail() {
         companyId,
         establishmentId,
         documentId,
-        { direction: 'parent', relationType: 'EVIDENCE' },
+        { direction: 'all', relationType: 'EVIDENCE' }, // A->B e B->A
         accessToken
       );
       const data = res || {};
@@ -208,14 +172,24 @@ export default function DocumentDetail() {
     }
   }
 
-  // ---------- IDs de documentos já relacionados (lado "filho") ----------
+  // ---------- IDs de documentos já relacionados (mãe ou filho) ----------
 
   const evidenceDocumentIds = useMemo(
     () =>
       evidences
-        .map((rel) => rel.toDocumentId || rel.toDocument?.id || null)
+        .map((rel) => {
+          if (rel.fromDocumentId === documentId) {
+            // atual é "mãe" → outro é o filho
+            return rel.toDocumentId || rel.toDocument?.id || null;
+          }
+          if (rel.toDocumentId === documentId) {
+            // atual é "filho" → outro é a mãe
+            return rel.fromDocumentId || rel.fromDocument?.id || null;
+          }
+          return null;
+        })
         .filter(Boolean),
-    [evidences]
+    [evidences, documentId]
   );
 
   // ---------- Autocomplete de tipos de evidência ----------
@@ -381,7 +355,7 @@ export default function DocumentDetail() {
         console.warn('Failed to auto-activate evidence version', errActivate);
       }
 
-      // 4) Cria relação MÃE -> EVIDENCE (usa targetDocumentId, alinhado ao backend)
+      // 4) Cria relação MÃE -> EVIDENCE (usa targetDocumentId)
       await createRelation(
         companyId,
         establishmentId,
@@ -499,10 +473,7 @@ export default function DocumentDetail() {
         >
           <h3 style={{ margin: 0 }}>Versions</h3>
 
-          <ProtectedRoute
-            inline
-            permissions={['documentVersion.create']}
-          >
+          <RequirePermission permissions={['documentVersion.create']}>
             {!showUpload && (
               <button
                 type="button"
@@ -512,15 +483,12 @@ export default function DocumentDetail() {
                 Upload new version
               </button>
             )}
-          </ProtectedRoute>
+          </RequirePermission>
         </div>
 
         {/* Form embutido de upload de nova versão */}
         {showUpload && (
-          <ProtectedRoute
-            inline
-            permissions={['documentVersion.create']}
-          >
+          <RequirePermission permissions={['documentVersion.create']}>
             <form
               onSubmit={handleUploadVersion}
               className="card"
@@ -533,8 +501,7 @@ export default function DocumentDetail() {
               {uploadFile && (
                 <div style={{ marginBottom: 8, fontSize: 13 }}>
                   Selected:{' '}
-                  <strong>{uploadFile.name}</strong> ({uploadFile.size}{' '}
-                  bytes)
+                  <strong>{uploadFile.name}</strong> ({uploadFile.size} bytes)
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8 }}>
@@ -554,7 +521,7 @@ export default function DocumentDetail() {
                 </button>
               </div>
             </form>
-          </ProtectedRoute>
+          </RequirePermission>
         )}
 
         <table className="data-table">
@@ -572,7 +539,23 @@ export default function DocumentDetail() {
           </thead>
           <tbody>
             {(versions || []).map((v) => {
-              const fileUrl = resolveFileUrl(v);
+              const viewUrl = buildDocumentFileUrl(
+                companyId,
+                establishmentId,
+                documentId,
+                v.id,
+                'view',
+                accessToken, // token no URL, se sua helper suporta
+              );
+              const downloadUrl = buildDocumentFileUrl(
+                companyId,
+                establishmentId,
+                documentId,
+                v.id,
+                'download',
+                accessToken,
+              );
+
               return (
                 <tr
                   key={v.id}
@@ -598,30 +581,31 @@ export default function DocumentDetail() {
                       : '—'}
                   </td>
                   <td style={{ display: 'flex', gap: 8 }}>
-                    {fileUrl && (
-                      <>
-                        <a
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="secondary"
-                        >
-                          View
-                        </a>
-                        <a
-                          href={fileUrl}
-                          download={v.filename}
-                          className="secondary"
-                        >
-                          Download
-                        </a>
-                      </>
-                    )}
+                    {/* View → document.view */}
+                    <RequirePermission permissions={['document.view']}>
+                      <a
+                        href={viewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="secondary"
+                      >
+                        View
+                      </a>
+                    </RequirePermission>
 
-                    <ProtectedRoute
-                      inline
-                      permissions={['documentVersion.activate']}
-                    >
+                    {/* Download → document.download */}
+                    <RequirePermission permissions={['document.download']}>
+                      <a
+                        href={downloadUrl}
+                        download={v.filename}
+                        className="secondary"
+                      >
+                        Download
+                      </a>
+                    </RequirePermission>
+
+                    {/* Activate → documentVersion.activate */}
+                    <RequirePermission permissions={['documentVersion.activate']}>
                       {currentVersionId !== v.id && (
                         <button
                           type="button"
@@ -630,7 +614,7 @@ export default function DocumentDetail() {
                           Activate
                         </button>
                       )}
-                    </ProtectedRoute>
+                    </RequirePermission>
                   </td>
                 </tr>
               );
@@ -640,8 +624,8 @@ export default function DocumentDetail() {
 
         {!versions?.length && (
           <div style={{ marginTop: 8, fontSize: 13 }}>
-            No versions yet. Use &quot;Upload new version&quot; to send
-            the first file.
+            No versions yet. Use &quot;Upload new version&quot; to send the
+            first file.
             {storageBaseHint}
           </div>
         )}
@@ -660,8 +644,7 @@ export default function DocumentDetail() {
         >
           <h3 style={{ margin: 0 }}>Related documents (evidences, annexes)</h3>
 
-          <ProtectedRoute
-            inline
+          <RequirePermission
             permissions={['document.create', 'documentVersion.create']}
           >
             <button
@@ -673,9 +656,9 @@ export default function DocumentDetail() {
             >
               Upload new related document
             </button>
-          </ProtectedRoute>
+          </RequirePermission>
 
-          <ProtectedRoute inline permissions={['document.read']}>
+          <RequirePermission permissions={['document.read']}>
             <button
               type="button"
               className={
@@ -686,13 +669,12 @@ export default function DocumentDetail() {
             >
               Link existing document
             </button>
-          </ProtectedRoute>
+          </RequirePermission>
         </div>
 
         {/* --- Modo: novo documento relacionado --- */}
         {evidenceMode === 'new' && (
-          <ProtectedRoute
-            inline
+          <RequirePermission
             permissions={['document.create', 'documentVersion.create']}
           >
             <form
@@ -796,12 +778,12 @@ export default function DocumentDetail() {
                 </button>
               </div>
             </form>
-          </ProtectedRoute>
+          </RequirePermission>
         )}
 
         {/* --- Modo: relacionar documento existente --- */}
         {evidenceMode === 'existing' && (
-          <ProtectedRoute inline permissions={['document.read']}>
+          <RequirePermission permissions={['document.read']}>
             <form
               onSubmit={handleLinkExisting}
               className="card"
@@ -863,7 +845,7 @@ export default function DocumentDetail() {
                 </button>
               </div>
             </form>
-          </ProtectedRoute>
+          </RequirePermission>
         )}
 
         {/* Lista de documentos relacionados */}
@@ -882,23 +864,24 @@ export default function DocumentDetail() {
             </thead>
             <tbody>
               {evidences.map((rel) => {
-                // direction = 'parent' => este doc é fromDocument, o relacionado é toDocument
-                const child = rel.toDocument || null;
+                // Descobre qual é o "outro" doc na relação
+                const isFrom = rel.fromDocumentId === documentId;
+                const relatedDoc = isFrom ? rel.toDocument : rel.fromDocument;
 
                 return (
                   <tr key={rel.id}>
-                    <td>{child?.name || rel.toDocumentId || '—'}</td>
-                    <td>{child?.type?.name || child?.typeId || '—'}</td>
-                    <td>{child?.status || '—'}</td>
+                    <td>{relatedDoc?.name || '—'}</td>
+                    <td>{relatedDoc?.type?.name || relatedDoc?.typeId || '—'}</td>
+                    <td>{relatedDoc?.status || '—'}</td>
                     <td>
-                      {child?.currentVersion?.versionNumber != null
-                        ? `v${child.currentVersion.versionNumber}`
+                      {relatedDoc?.currentVersion?.versionNumber != null
+                        ? `v${relatedDoc.currentVersion.versionNumber}`
                         : '—'}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {child?.id && (
+                      {relatedDoc?.id && (
                         <Link
-                          to={`/companies/${companyId}/establishments/${establishmentId}/documents/${child.id}`}
+                          to={`/companies/${companyId}/establishments/${establishmentId}/documents/${relatedDoc.id}`}
                           style={{ marginRight: 8 }}
                         >
                           Open
@@ -1002,9 +985,7 @@ export default function DocumentDetail() {
                 type="button"
                 className={
                   'secondary' +
-                  (typeModalKindFilter === 'MAIN'
-                    ? ' primary-outline'
-                    : '')
+                  (typeModalKindFilter === 'MAIN' ? ' primary-outline' : '')
                 }
                 onClick={() => setTypeModalKindFilter('MAIN')}
               >
@@ -1038,9 +1019,7 @@ export default function DocumentDetail() {
                 type="button"
                 className={
                   'secondary' +
-                  (typeModalKindFilter === 'OTHER'
-                    ? ' primary-outline'
-                    : '')
+                  (typeModalKindFilter === 'OTHER' ? ' primary-outline' : '')
                 }
                 onClick={() => setTypeModalKindFilter('OTHER')}
               >
@@ -1131,9 +1110,7 @@ export default function DocumentDetail() {
                 marginBottom: 8,
               }}
             >
-              <h3 style={{ margin: 0 }}>
-                Documents in this establishment
-              </h3>
+              <h3 style={{ margin: 0 }}>Documents in this establishment</h3>
               <button
                 type="button"
                 className="secondary"

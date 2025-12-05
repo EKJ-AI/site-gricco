@@ -1,25 +1,106 @@
-// src/modules/companies/company.controller.js
 import prisma from '../../../prisma/client.js';
 import { parsePagination } from '../../infra/http/pagination.js';
 import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
 import { registerAudit } from '../../utils/audit.js';
 import { createCompanyWithHeadquarter } from './company.service.js';
 
+function buildCompanyScopeWhere(user, extraWhere = {}) {
+  const perms = user?.permissions || [];
+  const isGlobalAdmin = perms.includes('system.admin.global');
+  const isCompanyAdmin = perms.includes('company.admin');
+
+  // 🔓 Admin Global → sem restrição extra
+  if (isGlobalAdmin) {
+    return { ...extraWhere };
+  }
+
+  // 🔓 Admin de empresa → restringe por createdByUserId
+  if (isCompanyAdmin) {
+    return {
+      ...extraWhere,
+      createdByUserId: user.id,
+    };
+  }
+
+  // ❌ Outros perfis não podem ALTERAR empresas (update/delete)
+  // Usa um filtro impossível para não vazar nada
+  return {
+    ...extraWhere,
+    id: '__NO_ACCESS__',
+  };
+}
+
+// helper pra normalizar CNPJ (só dígitos)
+function normalizeCnpj(cnpj) {
+  if (!cnpj) return '';
+  return String(cnpj).replace(/\D+/g, '');
+}
+
 export async function list(req, res) {
   try {
     const { q } = req.query;
     const { skip, take, page, pageSize } = parsePagination(req);
 
-    const where = q
+    const perms = req.user?.permissions || [];
+    const isGlobalAdmin = perms.includes('system.admin.global');
+    const isCompanyAdmin = perms.includes('company.admin');
+
+    const whereSearch = q
       ? {
           OR: [
-            { cnpj:      { contains: q, mode: 'insensitive' } },
+            // busca por CNPJ usando só dígitos
+            {
+              cnpj: {
+                contains: normalizeCnpj(q),
+                mode: 'insensitive',
+              },
+            },
             { legalName: { contains: q, mode: 'insensitive' } },
             { tradeName: { contains: q, mode: 'insensitive' } },
-            { city:      { contains: q, mode: 'insensitive' } },
+            { city: { contains: q, mode: 'insensitive' } },
           ],
         }
       : {};
+
+    let where = {};
+
+    if (isGlobalAdmin) {
+      // 🔓 Global admin → vê todas
+      where = { ...whereSearch };
+    } else if (isCompanyAdmin) {
+      // 🔓 Company admin → apenas empresas criadas por ele
+      where = {
+        ...whereSearch,
+        createdByUserId: req.user.id,
+      };
+    } else {
+      // 👇 Caso: perfil com company.read, mas NÃO company.admin
+      // Ex: sub-admin / colaborador do cliente
+      // Só enxerga empresas onde é Employee (via portalUserId)
+
+      const empCompanies = await prisma.employee.findMany({
+        where: {
+          portalUserId: req.user.id,
+        },
+        select: { companyId: true },
+      });
+
+      const companyIds = [
+        ...new Set(empCompanies.map((e) => String(e.companyId))),
+      ];
+
+      if (!companyIds.length) {
+        return res.json({
+          success: true,
+          data: { total: 0, page, pageSize, items: [] },
+        });
+      }
+
+      where = {
+        ...whereSearch,
+        id: { in: companyIds },
+      };
+    }
 
     const [total, items] = await Promise.all([
       prisma.company.count({ where }),
@@ -46,8 +127,37 @@ export async function list(req, res) {
 export async function getById(req, res) {
   try {
     const { id } = req.params;
-    const item = await prisma.company.findUnique({
-      where: { id },
+
+    const perms = req.user?.permissions || [];
+    const isGlobalAdmin = perms.includes('system.admin.global');
+    const isCompanyAdmin = perms.includes('company.admin');
+
+    let where = { id };
+
+    if (isGlobalAdmin) {
+      // 🔓 Global admin → sem filtro extra
+      where = { id };
+    } else if (isCompanyAdmin) {
+      // 🔓 Company admin → empresa que ele criou
+      where = {
+        id,
+        createdByUserId: req.user.id,
+      };
+    } else {
+      // 👇 Leitor comum (company.read sem company.admin)
+      // Só pode ver empresas onde é Employee (portalUserId)
+      where = {
+        id,
+        employees: {
+          some: {
+            portalUserId: req.user.id,
+          },
+        },
+      };
+    }
+
+    const item = await prisma.company.findFirst({
+      where,
       include: {
         establishments: {
           include: { cnaes: { include: { cnae: true } } },
@@ -76,11 +186,11 @@ export async function getById(req, res) {
 export async function create(req, res) {
   try {
     const body = req.body || {};
-        console.log("BODY", body);
-
+    console.log('BODY', body);
 
     const rawCnpj = body.cnpj ? String(body.cnpj) : '';
-    const cnpjDigits = rawCnpj.replace(/\D+/g, '');
+    const cnpjDigits = normalizeCnpj(rawCnpj);
+
     if (!cnpjDigits || cnpjDigits.length !== 14) {
       return res.status(400).json({
         success: false,
@@ -88,18 +198,35 @@ export async function create(req, res) {
       });
     }
 
+    const tenantId = req.user?.tenantId ?? body.tenantId ?? null;
+
+    // 🔒 NÃO permitir mesma empresa (mesmo CNPJ) ser criada por admins diferentes
+    const existing = await prisma.company.findFirst({
+      where: {
+        tenantId,
+        OR: [{ cnpj: cnpjDigits }, { cnpj: rawCnpj }],
+      },
+    });
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Já existe uma empresa cadastrada com este CNPJ.',
+      });
+    }
+
     const payload = {
       ...body,
       cnpj: rawCnpj,
-      tenantId: req.user?.tenantId ?? body.tenantId,
+      tenantId,
     };
 
-    console.log("PAYLOAD", payload);
+    console.log('PAYLOAD', payload);
 
     const { company, headquarter } =
       await createCompanyWithHeadquarter(payload, req.user?.id);
 
-    console.log("COMPANY", company);
+    console.log('COMPANY', company);
 
     await registerAudit({
       userId: req.user?.id,
@@ -129,6 +256,46 @@ export async function update(req, res) {
   try {
     const { id } = req.params;
     const data = req.body || {};
+
+    // garante escopo de escrita (global / company.admin)
+    const existing = await prisma.company.findFirst({
+      where: buildCompanyScopeWhere(req.user, { id }),
+      select: { id: true, tenantId: true, cnpj: true },
+    });
+
+    if (!existing) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Company not found' });
+    }
+
+    // Se estiver alterando CNPJ, evitar mudar para um CNPJ já existente
+    if (data.cnpj !== undefined) {
+      const rawCnpj = String(data.cnpj);
+      const cnpjDigits = normalizeCnpj(rawCnpj);
+
+      if (!cnpjDigits || cnpjDigits.length !== 14) {
+        return res.status(400).json({
+          success: false,
+          message: 'CNPJ must have 14 digits',
+        });
+      }
+
+      const dup = await prisma.company.findFirst({
+        where: {
+          tenantId: existing.tenantId ?? null,
+          OR: [{ cnpj: cnpjDigits }, { cnpj: rawCnpj }],
+          NOT: { id },
+        },
+      });
+
+      if (dup) {
+        return res.status(409).json({
+          success: false,
+          message: 'Já existe outra empresa cadastrada com este CNPJ.',
+        });
+      }
+    }
 
     let startAtValue = undefined;
     if (data.startAt === '' || data.startAt == null) {
@@ -190,6 +357,17 @@ export async function update(req, res) {
 export async function remove(req, res) {
   try {
     const { id } = req.params;
+
+    const existing = await prisma.company.findFirst({
+      where: buildCompanyScopeWhere(req.user, { id }),
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Company not found' });
+    }
 
     await prisma.company.delete({ where: { id } });
 

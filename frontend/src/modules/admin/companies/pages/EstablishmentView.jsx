@@ -9,7 +9,7 @@ import {
   useLocation,
   Navigate,
 } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import Tabs from '../components/Tabs.jsx';
 
 export default function EstablishmentView() {
@@ -37,7 +37,6 @@ export default function EstablishmentView() {
     setLoading(true);
     setErr('');
 
-    // ✅ usa (companyId, establishmentId, token)
     getEstablishment(companyId, establishmentId, accessToken)
       .then((res) => {
         if (!mounted) return;
@@ -57,23 +56,25 @@ export default function EstablishmentView() {
   }, [companyId, establishmentId, accessToken]);
 
   const isBasePath =
-    location.pathname === `/companies/${companyId}/establishments/${establishmentId}`;
+    location.pathname ===
+    `/companies/${companyId}/establishments/${establishmentId}`;
 
   return (
     <div className="container">
       <div className="page-header">
-        <h2>{establishment?.nickname || establishment?.cnpj || 'Establishment'}</h2>
+        <h2>
+          {establishment?.nickname || establishment?.cnpj || 'Establishment'}
+        </h2>
 
-        {/* 🔹 Só o botão Edit aqui – os menus Documents/Departments/Employees ficam no Tabs */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <ProtectedRoute inline permissions={['establishment.update']}>
+          <RequirePermission permission="establishment.update">
             <Link
               to={`/companies/${companyId}/establishments/${establishmentId}/edit`}
               className="primary"
             >
               Edit
             </Link>
-          </ProtectedRoute>
+          </RequirePermission>
         </div>
       </div>
 
@@ -82,14 +83,10 @@ export default function EstablishmentView() {
 
       {!loading && !err && (
         <>
-          {/* Tabs deve ser o único responsável pelos "menus" internos:
-              Documents / Departments / Employees */}
           <Tabs />
 
-          {/* Rotas filhas: documents/departments/employees */}
           <Outlet />
 
-          {/* Abriu /companies/:companyId/establishments/:establishmentId "seco"? redireciona pra documents */}
           {isBasePath && (
             <Navigate
               to={`/companies/${companyId}/establishments/${establishmentId}/documents`}

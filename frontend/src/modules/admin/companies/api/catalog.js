@@ -18,7 +18,12 @@ const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || min));
 function normalizeListResponse(res) {
   const root = res?.data?.data ?? res?.data ?? {};
   if (Array.isArray(root)) {
-    return { items: root, total: root.length, page: 1, pageSize: root.length };
+    return {
+      items: root,
+      total: root.length,
+      page: 1,
+      pageSize: root.length,
+    };
   }
   return {
     items: root.items ?? [],
@@ -55,7 +60,11 @@ export async function searchCNAE(q, page = 1, pageSize = 10, token) {
     pageSize: clamp(pageSize, 1, 200),
   };
   const config = { params, headers: authHeaders(token) };
-  const res = await tryAltRoutes('/api/catalogs/cnaes', '/api/catalogs/cnae', config);
+  const res = await tryAltRoutes(
+    '/api/catalogs/cnaes',
+    '/api/catalogs/cnae',
+    config
+  );
   return normalizeListResponse(res);
 }
 
@@ -71,7 +80,11 @@ export async function searchCBO(q, page = 1, pageSize = 10, token) {
     pageSize: clamp(pageSize, 1, 200),
   };
   const config = { params, headers: authHeaders(token) };
-  const res = await tryAltRoutes('/api/catalogs/cbos', '/api/catalogs/cbo', config);
+  const res = await tryAltRoutes(
+    '/api/catalogs/cbos',
+    '/api/catalogs/cbo',
+    config
+  );
   return normalizeListResponse(res);
 }
 
@@ -82,9 +95,12 @@ export async function searchCBO(q, page = 1, pageSize = 10, token) {
  */
 export async function lookupCEP(cep, token) {
   if (!cep) return null;
-  const res = await api.get(`/api/catalogs/cep/${encodeURIComponent(String(cep))}`, {
-    headers: authHeaders(token),
-  });
+  const res = await api.get(
+    `/api/catalogs/cep/${encodeURIComponent(String(cep))}`,
+    {
+      headers: authHeaders(token),
+    }
+  );
   return res?.data?.data ?? null;
 }
 
@@ -96,20 +112,21 @@ export async function lookupCEP(cep, token) {
  */
 export async function lookupCNPJ(cnpj, token) {
   if (!cnpj) return null;
-  const res = await api.get(`/api/catalogs/cnpj/${encodeURIComponent(String(cnpj))}`, {
-    headers: authHeaders(token),
-  });
+  const res = await api.get(
+    `/api/catalogs/cnpj/${encodeURIComponent(String(cnpj))}`,
+    {
+      headers: authHeaders(token),
+    }
+  );
   return res?.data?.data ?? null;
 }
 
 /**
- * Opcional: busca um CNAE específico por código (ex.: “6201-5/01”)
- * Tenta /cnaes/:code e fallback /cnae/:code
+ * Busca um CNAE específico por código usando a própria searchCNAE.
+ * Ex.: "6201-5/01"
  */
 export async function getCNAEByCode(code, token) {
   if (!code) return null;
-  const cfg = { headers: authHeaders(token) };
-  const safe = encodeURIComponent(String(code));
-  const res = await tryAltRoutes(`/api/catalogs/cnaes/${safe}`, `/api/catalogs/cnae/${safe}`, cfg);
-  return res?.data?.data ?? null;
+  const list = await searchCNAE(String(code), 1, 1, token);
+  return list.items?.[0] ?? null;
 }

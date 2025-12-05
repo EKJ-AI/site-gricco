@@ -1,10 +1,10 @@
-import { parsePagination } from '../../infra/http/pagination.js';
 import prisma from '../../../prisma/client.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../services/email.service.js';
 import logger from '../../utils/logger.js';
 import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
+import { registerAudit } from '../../utils/audit.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const RESET_EXPIRATION = process.env.RESET_TOKEN_EXPIRATION || '15m';
@@ -44,70 +44,84 @@ export async function forgotPassword(req, res) {
         <p>Você solicitou a redefinição da sua senha.</p>
         <p><a href="${resetLink}">Clique aqui para redefinir sua senha</a></p>
         <p>Este link expira em ${RESET_EXPIRATION}.</p>
-      `
+      `,
     );
 
     logger.info(`[PASSWORD] Reset link enviado para ${email}`);
     res.json({ success: true, message: 'Se existir, enviamos o link para o email.' });
   } catch (error) {
     logger.error(`[PASSWORD] Erro no forgotPassword: ${error.message}`, error);
-      const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    const mapped = prismaErrorToHttp(error);
+    if (mapped) {
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
+    }
     res.status(500).json({ success: false, message: 'Erro ao processar solicitação.' });
   }
 }
 
 export async function resetPassword(req, res) {
+  let userId = null;
+
   try {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
-      logger.warn(`[PASSWORD] Reset request missing token or password`);
-      await prisma.auditLog.create({
-        data: {
-          action: 'PASSWORD_RESET',
-          entity: 'User',
-          details: 'Tentativa sem token ou senha',
-          ip: req.ip
-        }
+      logger.warn('[PASSWORD] Reset request missing token or password');
+
+      await registerAudit({
+        userId: null,
+        action: 'UPDATE',
+        entity: 'User',
+        details: 'Tentativa de reset de senha sem token ou senha',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
       });
-      return res.status(400).json({ success: false, message: 'Token e nova senha são obrigatórios.' });
+
+      return res.status(400).json({
+        success: false,
+        message: 'Token e nova senha são obrigatórios.',
+      });
     }
 
     if (!isStrongPassword(newPassword)) {
-      logger.warn(`[PASSWORD] Weak password provided`);
-      await prisma.auditLog.create({
-        data: {
-          action: 'PASSWORD_RESET',
-          entity: 'User',
-          details: 'Senha fraca',
-          ip: req.ip
-        }
+      logger.warn('[PASSWORD] Weak password provided');
+
+      await registerAudit({
+        userId: null,
+        action: 'UPDATE',
+        entity: 'User',
+        details: 'Tentativa de reset de senha com senha fraca',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
       });
+
       return res.status(400).json({
         success: false,
-        message: 'A senha deve ter no mínimo 8 caracteres, incluindo maiúscula, minúscula e número.'
+        message:
+          'A senha deve ter no mínimo 8 caracteres, incluindo maiúscula, minúscula e número.',
       });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.sub;
+    userId = decoded.sub;
 
     const hashed = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: hashed }
+      data: { passwordHash: hashed },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'PASSWORD_RESET',
-        entity: 'User',
-        userId,
-        details: 'Senha redefinida com sucesso',
-        ip: req.ip
-      }
+    await registerAudit({
+      userId,
+      action: 'UPDATE',
+      entity: 'User',
+      entityId: userId,
+      details: 'Senha redefinida com sucesso',
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
     });
 
     logger.info(`[PASSWORD] Senha redefinida para userId ${userId}`);
@@ -116,16 +130,20 @@ export async function resetPassword(req, res) {
     logger.error(`[PASSWORD] Erro ao resetar senha: ${error.message}`, error);
 
     try {
-      await prisma.auditLog.create({
-        data: {
-          action: 'PASSWORD_RESET',
-          entity: 'User',
-          details: 'Token inválido ou expirado',
-          ip: req.ip
-        }
+      await registerAudit({
+        userId,
+        action: 'UPDATE',
+        entity: 'User',
+        entityId: userId,
+        details: 'Falha ao redefinir senha (token inválido ou expirado)',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
       });
     } catch (auditErr) {
-      logger.error(`[PASSWORD] Falha ao registrar audit log: ${auditErr.message}`, auditErr);
+      logger.error(
+        `[PASSWORD] Falha ao registrar audit log: ${auditErr.message}`,
+        auditErr,
+      );
     }
 
     res.status(400).json({ success: false, message: 'Token inválido ou expirado.' });

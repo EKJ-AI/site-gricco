@@ -1,8 +1,12 @@
-// src/modules/companies/pages/DepartmentForm.jsx
 import React, { useEffect, useState } from 'react';
-import { createDepartment, getDepartment, updateDepartment } from '../api/departments';
+import {
+  createDepartmentInEstablishment,
+  getDepartmentInEstablishment,
+  updateDepartmentInEstablishment,
+} from '../api/departments';
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
+import usePermission from '../../../auth/hooks/usePermission';
 
 export default function DepartmentForm({ mode = 'create' }) {
   const { accessToken } = useAuth();
@@ -17,30 +21,63 @@ export default function DepartmentForm({ mode = 'create' }) {
   });
   const [error, setError] = useState('');
 
+  // permissões
+  const canCreate = usePermission('department.create');
+  const canUpdate = usePermission('department.update');
+
   useEffect(() => {
     if (mode === 'edit' && departmentId) {
-      getDepartment(departmentId, accessToken).then((d) => {
-        if (!d) return;
-        setForm({
-          name: d.name || '',
-          description: d.description || '',
-          shift: d.shift || '',
-          workload: d.workload || '',
+      getDepartmentInEstablishment(
+        companyId,
+        establishmentId,
+        departmentId,
+        accessToken
+      )
+        .then((d) => {
+          if (!d) return;
+          setForm({
+            name: d.name || '',
+            description: d.description || '',
+            shift: d.shift || '',
+            workload: d.workload || '',
+          });
+        })
+        .catch(() => {
+          setError('Failed to load department.');
         });
-      });
     }
-  }, [mode, departmentId, accessToken]);
+  }, [mode, departmentId, companyId, establishmentId, accessToken]);
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
 
+    // bloqueio por permissão
+    if (mode === 'edit' && !canUpdate) {
+      setError('You do not have permission to update departments.');
+      return;
+    }
+    if (mode === 'create' && !canCreate) {
+      setError('You do not have permission to create departments.');
+      return;
+    }
+
     try {
       if (mode === 'edit') {
-        await updateDepartment(departmentId, form, accessToken);
+        await updateDepartmentInEstablishment(
+          companyId,
+          establishmentId,
+          departmentId,
+          form,
+          accessToken
+        );
       } else {
-        // API atual: createDepartment(establishmentId, payload, token)
-        await createDepartment(establishmentId, form, accessToken);
+        await createDepartmentInEstablishment(
+          companyId,
+          establishmentId,
+          form,
+          accessToken
+        );
       }
 
       navigate(
@@ -50,6 +87,9 @@ export default function DepartmentForm({ mode = 'create' }) {
       setError('Failed to save.');
     }
   };
+
+  const saveDisabled =
+    (mode === 'edit' && !canUpdate) || (mode === 'create' && !canCreate);
 
   return (
     <div className="container">
@@ -79,11 +119,15 @@ export default function DepartmentForm({ mode = 'create' }) {
           <input
             placeholder="Description"
             value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, description: e.target.value })
+            }
           />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="submit">Save</button>
+          <button type="submit" disabled={saveDisabled}>
+            Save
+          </button>
           <button
             type="button"
             className="secondary"

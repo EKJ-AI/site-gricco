@@ -42,7 +42,9 @@ export async function list(req, res) {
     return res.json({ success: true, data: { total, page, pageSize, items } });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, ...mapped });
+    if (mapped) {
+      return res.status(mapped.status).json({ success: false, ...mapped });
+    }
     return res.status(500).json({ success: false, message: 'Internal error' });
   }
 }
@@ -58,17 +60,23 @@ export async function getById(req, res) {
         company: true,
         departments: true,
         documents: true,
+        employees: true,
         cnaes: { include: { cnae: true } },
       },
     });
-    if (!item)
+
+    if (!item) {
       return res
         .status(404)
         .json({ success: false, message: 'Establishment not found' });
+    }
+
     res.json({ success: true, data: item });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, ...mapped });
+    if (mapped) {
+      return res.status(mapped.status).json({ success: false, ...mapped });
+    }
     res.status(500).json({ success: false, message: 'Internal error' });
   }
 }
@@ -206,7 +214,10 @@ export async function update(req, res) {
     });
 
     if (Array.isArray(cnaes) && cnaes.length) {
-      const { mainCnae, riskLevel } = await applyCnaesToEstablishment(effectiveId, cnaes);
+      const { mainCnae, riskLevel } = await applyCnaesToEstablishment(
+        effectiveId,
+        cnaes,
+      );
       updated.mainCnae = mainCnae;
       updated.riskLevel = riskLevel;
     }
@@ -222,28 +233,69 @@ export async function update(req, res) {
     res.json({ success: true, data: updated });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, ...mapped });
+    if (mapped) {
+      return res.status(mapped.status).json({ success: false, ...mapped });
+    }
     res.status(500).json({ success: false, message: 'Internal error' });
   }
 }
 
 export async function remove(req, res) {
   try {
-    const { id, establishmentId } = req.params;
+    const { id, establishmentId, companyId } = req.params;
     const effectiveId = establishmentId || id;
 
-    await prisma.establishment.delete({ where: { id: effectiveId } });
+    // 1) Garante que o estabelecimento existe e (se veio companyId) pertence à empresa da rota
+    const existing = await prisma.establishment.findFirst({
+      where: {
+        id: effectiveId,
+        ...(companyId ? { companyId } : {}),
+      },
+      include: {
+        documents: { select: { id: true }, take: 1 },
+        departments: { select: { id: true }, take: 1 },
+        employees: { select: { id: true }, take: 1 },
+      },
+    });
+
+    if (!existing) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Establishment not found' });
+    }
+
+    // 2) Regra de negócio básica: não permitir excluir se tiver vínculos
+    const hasDocs = (existing.documents || []).length > 0;
+    const hasDepts = (existing.departments || []).length > 0;
+    const hasEmps = (existing.employees || []).length > 0;
+
+    if (hasDocs || hasDepts || hasEmps) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Não é possível excluir este estabelecimento porque há documentos, departamentos ou colaboradores vinculados. ' +
+          'Remova ou transfira esses registros antes de excluir o estabelecimento.',
+      });
+    }
+
+    // 3) Efetiva a exclusão
+    await prisma.establishment.delete({ where: { id: existing.id } });
+
     await registerAudit({
       userId: req.user?.id,
       action: 'DELETE',
       entity: 'Establishment',
-      entityId: effectiveId,
+      entityId: existing.id,
       details: '',
     });
+
     res.json({ success: true, message: 'Establishment removed' });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, ...mapped });
+    if (mapped) {
+      return res.status(mapped.status).json({ success: false, ...mapped });
+    }
+    console.error('[ESTABLISHMENT] remove error', err);
     res.status(500).json({ success: false, message: 'Internal error' });
   }
 }

@@ -1,10 +1,14 @@
 // src/modules/companies/pages/Departments.jsx
 import React, { useEffect, useState } from 'react';
-import { listDepartments, deleteDepartment } from '../api/departments.js';
+import {
+  listDepartmentsInEstablishment,
+  deleteDepartmentInEstablishment,
+} from '../api/departments.js';
 import DepartmentTable from '../components/DepartmentTable.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
+//import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import { Link, useParams } from 'react-router-dom';
 
 export default function Departments() {
@@ -21,7 +25,8 @@ export default function Departments() {
 
   const fetcher = async (page = 1) => {
     try {
-      const res = await listDepartments(
+      const res = await listDepartmentsInEstablishment(
+        companyId,
         establishmentId,
         { page, pageSize: 20, q },
         accessToken
@@ -35,11 +40,16 @@ export default function Departments() {
   useEffect(() => {
     fetcher(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [establishmentId, accessToken]);
+  }, [companyId, establishmentId, accessToken]);
 
   const onDelete = async (id) => {
     if (!window.confirm('Confirm delete?')) return;
-    await deleteDepartment(id, accessToken);
+    await deleteDepartmentInEstablishment(
+      companyId,
+      establishmentId,
+      id,
+      accessToken
+    );
     fetcher(data.page);
   };
 
@@ -61,14 +71,14 @@ export default function Departments() {
         />
         <button onClick={() => fetcher(1)}>Search</button>
 
-        <ProtectedRoute inline permissions={['department.create']}>
+        <RequirePermission permissions={['department.create']}>
           <Link
             to={`/companies/${companyId}/establishments/${establishmentId}/departments/new`}
             className="primary"
           >
             New Department
           </Link>
-        </ProtectedRoute>
+        </RequirePermission>
       </div>
 
       <DepartmentTable rows={data.items} onDelete={onDelete} />

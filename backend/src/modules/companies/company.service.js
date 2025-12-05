@@ -111,6 +111,9 @@ export async function createCompanyWithHeadquarter(payload, userId) {
       state: state ?? enriched?.state ?? null,
       zipCode: zipCode ?? enriched?.zipCode ?? null,
       // ibgeCityCode será tratado logo abaixo
+
+      // 👇 vínculo do “dono” da empresa (Admin local)
+      createdByUserId: userId ?? null,
     };
 
     if (tenantId !== undefined && tenantId !== null) {

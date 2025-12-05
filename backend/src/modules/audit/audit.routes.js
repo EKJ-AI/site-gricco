@@ -63,8 +63,9 @@ router.get(
   '/',
   authenticateToken,
   auditLog,
-  authorizePermissions(['logs.read']),
-  AuditController.list
+  // ✅ permission corrigida (existe no seed RBAC)
+  authorizePermissions(['audit.read']),
+  AuditController.list,
 );
 
 export default router;

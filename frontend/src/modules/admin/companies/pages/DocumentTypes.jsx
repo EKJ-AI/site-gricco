@@ -1,7 +1,7 @@
 // src/modules/companies/pages/DocumentTypes.jsx
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../auth/contexts/AuthContext';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import {
   listDocumentTypes,
   createDocumentType,
@@ -139,14 +139,14 @@ export default function DocumentTypes() {
           onChange={(e) => setQ(e.target.value)}
         />
         <button onClick={() => fetcher(1)}>Search</button>
-        <ProtectedRoute inline permissions={['documentType.create']}>
+        <RequirePermission permission="documentType.create">
           <button type="button" onClick={startNew}>
             New Type
           </button>
-        </ProtectedRoute>
+        </RequirePermission>
       </div>
 
-      <ProtectedRoute inline permissions={['documentType.create', 'documentType.update']}>
+      <RequirePermission permission={['documentType.create', 'documentType.update']}>
         <form className="form" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
           <h3>{editing ? 'Edit Document Type' : 'New Document Type'}</h3>
           <div className="grid-2">
@@ -190,7 +190,7 @@ export default function DocumentTypes() {
             )}
           </div>
         </form>
-      </ProtectedRoute>
+      </RequirePermission>
 
       {loading ? (
         <div>Loading…</div>
@@ -222,10 +222,7 @@ export default function DocumentTypes() {
                       : '—'}
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <ProtectedRoute
-                      inline
-                      permissions={['documentType.update']}
-                    >
+                    <RequirePermission permission="documentType.update">
                       <button
                         type="button"
                         style={{ marginRight: 8 }}
@@ -233,11 +230,8 @@ export default function DocumentTypes() {
                       >
                         Edit
                       </button>
-                    </ProtectedRoute>
-                    <ProtectedRoute
-                      inline
-                      permissions={['documentType.delete']}
-                    >
+                    </RequirePermission>
+                    <RequirePermission permission="documentType.delete">
                       <button
                         type="button"
                         className="secondary"
@@ -245,7 +239,7 @@ export default function DocumentTypes() {
                       >
                         Delete
                       </button>
-                    </ProtectedRoute>
+                    </RequirePermission>
                   </td>
                 </tr>
               ))}

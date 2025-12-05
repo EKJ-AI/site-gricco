@@ -1,10 +1,11 @@
+// src/modules/admin/companies/pages/CompanyList.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CompanyCard from '../components/CompanyCard.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { listCompanies, deleteCompany } from '../api/companies.js';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function CompanyList() {
   const { accessToken } = useAuth();
@@ -57,11 +58,11 @@ export default function CompanyList() {
           />
           <button onClick={() => fetcher(1)}>Search</button>
 
-          <ProtectedRoute inline permissions={['company.create']}>
+          <RequirePermission permission="company.create">
             <Link to="/companies/new" className="primary">
               New Company
             </Link>
-          </ProtectedRoute>
+          </RequirePermission>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
 
 function mapMethodToEnum(method) {
-  const allowedArr = Object.values(Prisma.AuditAction); // enum do Prisma
+  const allowedArr = Object.values(AuditAction); // enum do Prisma gerado a partir do schema
   const allowed = new Set(allowedArr);
   const m = String(method || '').toUpperCase();
 
@@ -16,7 +16,6 @@ function mapMethodToEnum(method) {
     m === 'DELETE' ? 'DELETE' : null;
 
   if (guess && allowed.has(guess)) return guess;
-  // fallback seguro: primeiro valor do enum (ex.: 'READ')
   return allowedArr[0];
 }
 

@@ -1,6 +1,7 @@
+// src/modules/admin/companies/components/CompanyCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function CompanyCard({ item, onDelete }) {
   return (
@@ -14,11 +15,11 @@ export default function CompanyCard({ item, onDelete }) {
           Open
         </Link>
 
-        <ProtectedRoute inline permissions={['company.update']}>
+        <RequirePermission permission="company.update">
           <Link to={`/companies/${item.id}/edit`}>Edit</Link>
-        </ProtectedRoute>
+        </RequirePermission>
 
-        <ProtectedRoute inline permissions={['company.delete']}>
+        <RequirePermission permission="company.delete">
           <button
             type="button"
             className="danger"
@@ -26,7 +27,7 @@ export default function CompanyCard({ item, onDelete }) {
           >
             Delete
           </button>
-        </ProtectedRoute>
+        </RequirePermission>
       </div>
     </div>
   );

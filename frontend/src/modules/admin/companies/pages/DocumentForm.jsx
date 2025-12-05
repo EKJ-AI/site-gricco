@@ -1,4 +1,3 @@
-// src/modules/admin/companies/pages/DocumentForm.jsx
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   createDocument,
@@ -9,6 +8,7 @@ import {
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import AutocompleteSelect from '../components/AutocompleteSelect.jsx';
+import usePermission from '../../../auth/hooks/usePermission';
 
 const DOCUMENT_STATUS = ['DRAFT', 'ACTIVE', 'INACTIVE'];
 
@@ -27,6 +27,10 @@ export default function DocumentForm({ mode = 'create' }) {
 
   const [error, setError] = useState('');
   const [loadingDoc, setLoadingDoc] = useState(mode === 'edit');
+
+  // permissões
+  const canCreate = usePermission('document.create');
+  const canUpdate = usePermission('document.update');
 
   // ---- Modal de tipos de documento (tutorial) ----
   const [typeModalOpen, setTypeModalOpen] = useState(false);
@@ -104,6 +108,16 @@ export default function DocumentForm({ mode = 'create' }) {
     e.preventDefault();
     setError('');
 
+    // bloqueio por permissão
+    if (mode === 'edit' && !canUpdate) {
+      setError('You do not have permission to update documents.');
+      return;
+    }
+    if (mode === 'create' && !canCreate) {
+      setError('You do not have permission to create documents.');
+      return;
+    }
+
     if (!form.name.trim()) {
       setError('Name is required.');
       return;
@@ -150,6 +164,9 @@ export default function DocumentForm({ mode = 'create' }) {
       setError('Failed to save.');
     }
   };
+
+  const saveDisabled =
+    (mode === 'edit' && !canUpdate) || (mode === 'create' && !canCreate);
 
   return (
     <div className="container">
@@ -244,7 +261,9 @@ export default function DocumentForm({ mode = 'create' }) {
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button type="submit">Save</button>
+            <button type="submit" disabled={saveDisabled}>
+              Save
+            </button>
             <button
               type="button"
               className="secondary"

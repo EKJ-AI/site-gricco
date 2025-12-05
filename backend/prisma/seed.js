@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
@@ -6,101 +7,398 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+// ------------------------------------------------------
+// 1) Permissões
+// ------------------------------------------------------
+
+const PERMISSIONS = [
+  // Sistema / Escopo
+  'system.admin.global', // Admin Global: pode tudo no sistema (todas empresas)
+  'company.admin',       // Admin de empresa: pode gerir as empresas que criou
+
+  // Users / RBAC
+  'user.create',
+  'user.read',
+  'user.update',
+  'user.delete',
+  'profile.manage',
+  'permission.manage',
+
+  // i18n / Traduções
+  'i18n.read',
+  'i18n.write',
+  'translation.read',
+  'translation.create',
+  'translation.update',
+  'translation.delete',
+
+  // Auditoria / Logs
+  'audit.read',
+
+  // Companies
+  'company.read',
+  'company.create',
+  'company.update',
+  'company.delete',
+
+  // Establishments
+  'establishment.read',
+  'establishment.create',
+  'establishment.update',
+  'establishment.delete',
+
+  // Departments
+  'department.read',
+  'department.create',
+  'department.update',
+  'department.delete',
+
+  // Employees
+  'employee.read',
+  'employee.create',
+  'employee.update',
+  'employee.delete',
+
+  // Document Types
+  'documentType.read',
+  'documentType.create',
+  'documentType.update',
+  'documentType.delete',
+
+  // Documents (entidade lógica)
+  'document.read',
+  'document.create',
+  'document.update',
+  'document.delete',
+
+  // Document Versions (arquivos)
+  'documentVersion.read',
+  'documentVersion.create',
+  'documentVersion.activate',
+  'documentVersion.archive',
+
+  // Visualização / Download (para logar quem viu / baixou)
+  'document.view',
+  'document.download',
+
+  // Catálogos / tabelas auxiliares
+  'catalog.read',
+
+  // Dashboard
+  'dashboard.view',
+
+  // Inspeções
+  'inspection.read',
+  'inspection.create',
+  'inspection.update',
+  'inspection.delete',
+
+  // Relatórios
+  'report.read',
+  'report.create',
+  'report.update',
+  'report.delete',
+
+  // Treinamentos
+  'training.read',
+  'training.create',
+  'training.update',
+  'training.delete',
+];
+
+// ------------------------------------------------------
+// 2) Perfis e mapeamento de permissões
+// ------------------------------------------------------
+
+const PROFILE_CONFIG = [
+  {
+    name: 'ADMIN', // Admin Global
+    description:
+      'Admin Global com acesso a todas as empresas e todas as permissões.',
+    // Admin Global recebe TODAS as permissões
+    perms: PERMISSIONS,
+  },
+  {
+    name: 'COMPANY_ADMIN', // Admin de empresas
+    description:
+      'Admin de empresas: gerencia empresas que criou e seus dados de SST, sem privilégios globais de sistema.',
+    perms: [
+      'company.admin',
+
+      // leitura básica de sistema
+      'audit.read',
+      'catalog.read',
+      'dashboard.view',
+
+      // Companies (escopo será restringido pelo backend via Company.createdByUserId)
+      'company.read',
+      'company.create',
+      'company.update',
+      'company.delete',
+
+      // Estabelecimentos
+      'establishment.read',
+      'establishment.create',
+      'establishment.update',
+      'establishment.delete',
+
+      // Departamentos
+      'department.read',
+      'department.create',
+      'department.update',
+      'department.delete',
+
+      // Employees
+      'employee.read',
+      'employee.create',
+      'employee.update',
+      'employee.delete',
+
+      // Document Types
+      'documentType.read',
+
+      // Documentos (lógicos)
+      'document.read',
+      'document.create',
+      'document.update',
+      'document.delete',
+
+      // Versões de documentos
+      'documentVersion.read',
+      'documentVersion.create',
+      'documentVersion.activate',
+
+      // Visualização / download de documentos
+      'document.view',
+      'document.download',
+
+      // Inspeções, relatórios, treinamentos
+      'inspection.read',
+      'inspection.create',
+      'inspection.update',
+      'inspection.delete',
+
+      'report.read',
+      'training.read',
+    ],
+  },
+  {
+    name: 'EDITOR',
+    description:
+      'Perfil com permissão de edição operacional (sem poderes administrativos globais).',
+    perms: [
+      'i18n.read',
+      'i18n.write',
+
+      'company.read',
+      'establishment.read',
+      'department.read',
+      'employee.read',
+
+      'documentType.read',
+
+      'document.read',
+      'document.create',
+      'document.update',
+
+      'documentVersion.read',
+      'documentVersion.create',
+      'documentVersion.activate',
+
+      'document.view',
+      'document.download',
+
+      'catalog.read',
+
+      'dashboard.view',
+
+      'inspection.read',
+      'report.read',
+      'training.read',
+    ],
+  },
+  {
+    name: 'VIEWER',
+    description: 'Perfil somente leitura.',
+    perms: [
+      'i18n.read',
+      'audit.read',
+      'user.read',
+
+      'company.read',
+      'establishment.read',
+      'department.read',
+      'employee.read',
+
+      'documentType.read',
+
+      'document.read',
+      'documentVersion.read',
+      'document.view',
+      'document.download',
+
+      'catalog.read',
+      'dashboard.view',
+
+      'inspection.read',
+      'report.read',
+      'training.read',
+    ],
+  },
+  {
+    // ⚠️ Nome bate com o usado em employee.controller:
+    // PORTAL_EMPLOYEE_PROFILE_NAME || 'Portal Employee'
+    name: 'Portal Employee',
+    description:
+      'Colaborador de portal com acesso apenas aos documentos dos estabelecimentos aos quais está vinculado.',
+    perms: [
+      // acesso às telas básicas do estabelecimento
+      'establishment.read',
+
+      // leitura de documentos (o escopo real é filtrado pelo vínculo Employee.portalUserId)
+      'document.read',
+      'documentVersion.read',
+      'document.view',
+      'document.download',
+
+      // leitura de catálogos (ex.: CBO, CNAE, etc.)
+      'catalog.read',
+    ],
+  },
+];
+
+// ------------------------------------------------------
+// 3) Funções de seed
+// ------------------------------------------------------
+
 async function seedPermissions() {
   console.log('✨ Upserting permissões...');
-  const permissionsData = [
-    { name: 'user.create', description: 'Pode criar usuários' },
-    { name: 'user.read', description: 'Pode visualizar usuários' },
-    { name: 'user.update', description: 'Pode editar usuários' },
-    { name: 'user.delete', description: 'Pode excluir usuários' },
-    { name: 'profile.manage', description: 'Pode gerenciar perfis' },
-    { name: 'permission.manage', description: 'Pode gerenciar permissões' },
-    { name: 'logs.read', description: 'Pode ver logs de auditoria' },
-    { name: 'read:audit', description: 'Pode ler logs de auditoria' }
-  ];
 
-  const result = await Promise.all(
-    permissionsData.map(data =>
+  const permIds = {};
+
+  const createdPerms = await Promise.all(
+    PERMISSIONS.map((name) =>
       prisma.permission.upsert({
-        where: { name: data.name },
-        update: {},
-        create: data,
-      })
-    )
+        where: { name }, // exige que Permission.name seja único no schema
+        update: {}, // se já existir, não altera nada
+        create: { name },
+      }),
+    ),
   );
 
-  console.log(`✅ ${result.length} permissões atualizadas/criadas`);
-  return result;
-}
-
-async function seedAdminProfile(permissions) {
-  console.log('✨ Upserting perfil Admin...');
-  
-  const adminProfile = await prisma.profile.upsert({
-    where: { name: 'Admin' },
-    update: {},
-    create: {
-      name: 'Admin',
-      description: 'Perfil administrativo com todas as permissões',
-    },
-  });
-
-  console.log(`✅ Perfil Admin ID: ${adminProfile.id}`);
-
-  console.log('🔗 Associando permissões ao Admin...');
-  for (const perm of permissions) {
-    await prisma.profilePermission.upsert({
-      where: {
-        profileId_permissionId: {
-          profileId: adminProfile.id,
-          permissionId: perm.id,
-        },
-      },
-      update: {},
-      create: {
-        profileId: adminProfile.id,
-        permissionId: perm.id,
-      },
-    });
+  for (const p of createdPerms) {
+    permIds[p.name] = p.id;
   }
 
-  console.log(`✅ Todas permissões associadas ao Admin`);
-  return adminProfile;
+  console.log(`✅ ${createdPerms.length} permissões atualizadas/criadas.`);
+  return permIds;
 }
 
-async function seedAdminUser(adminProfile) {
-  console.log('✨ Criando usuário Admin...');
-  
-  const adminEmail = process.env.ADMIN_EMAIL?.trim() || 'admin@admin.com';
-  const adminPassword = process.env.ADMIN_PASSWORD?.trim() || 'admin123';
+async function seedProfiles(permIds) {
+  console.log('✨ Upserting perfis...');
+
+  const upsertedProfiles = await Promise.all(
+    PROFILE_CONFIG.map((pf) =>
+      prisma.profile.upsert({
+        where: { name: pf.name }, // exige que Profile.name seja único
+        update: {
+          description: pf.description ?? null,
+        },
+        create: {
+          name: pf.name,
+          description: pf.description ?? null,
+        },
+      }),
+    ),
+  );
+
+  console.log(
+    '✅ Perfis criados/atualizados:',
+    upsertedProfiles.map((p) => p.name).join(', '),
+  );
+
+  // Relações Perfil-Permissão
+  console.log('🔗 Associando permissões aos perfis...');
+  for (const profile of upsertedProfiles) {
+    const conf = PROFILE_CONFIG.find((p) => p.name === profile.name);
+    if (!conf) continue;
+
+    await Promise.all(
+      conf.perms
+        .filter((permName) => permIds[permName]) // defensivo
+        .map((permName) =>
+          prisma.profilePermission.upsert({
+            // requer @@unique([profileId, permissionId]) em ProfilePermission
+            where: {
+              profileId_permissionId: {
+                profileId: profile.id,
+                permissionId: permIds[permName],
+              },
+            },
+            update: {},
+            create: {
+              profileId: profile.id,
+              permissionId: permIds[permName],
+            },
+          }),
+        ),
+    );
+  }
+
+  console.log('✅ Permissões associadas aos perfis.');
+  return upsertedProfiles;
+}
+
+async function seedAdminGlobalUser(profiles) {
+  console.log('✨ Criando usuário Admin Global...');
+
+  const adminProfile = profiles.find((p) => p.name === 'ADMIN');
+  if (!adminProfile) {
+    throw new Error(
+      'Perfil ADMIN não encontrado ao tentar criar usuário Admin Global.',
+    );
+  }
+
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@admin.com').trim();
+  const adminPassword = (process.env.ADMIN_PASSWORD || 'admin123').trim();
 
   if (adminPassword.length < 6) {
-    console.warn(`⚠️ A senha de admin está fraca (<6). Recomende usar .env para configurar melhor.`);
+    console.warn(
+      '⚠️ A senha de admin está fraca (<6). Recomende usar .env para configurar melhor (ADMIN_PASSWORD).',
+    );
   }
 
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   const user = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      profileId: adminProfile.id,
+    },
     create: {
-      name: 'Administrador',
+      name: 'Administrador Global',
       email: adminEmail,
       passwordHash,
       profileId: adminProfile.id,
     },
   });
 
-  console.log(`✅ Usuário Admin criado/atualizado: ${user.email}`);
+  console.log(`✅ Usuário Admin Global criado/atualizado: ${user.email}`);
 }
 
+// ------------------------------------------------------
+// 4) Main
+// ------------------------------------------------------
+
 async function main() {
-  console.log('🌱 Iniciando Seed inicial iMAX...');
+  console.log(
+    '🌱 Iniciando Seed de RBAC (permissões, perfis, Portal Employee e Admin Global)...',
+  );
 
   try {
-    const permissions = await seedPermissions();
-    const adminProfile = await seedAdminProfile(permissions);
-    await seedAdminUser(adminProfile);
+    const permIds = await seedPermissions();
+    const profiles = await seedProfiles(permIds);
+    await seedAdminGlobalUser(profiles);
 
     console.log('✅ Seed concluído com sucesso!');
   } catch (error) {

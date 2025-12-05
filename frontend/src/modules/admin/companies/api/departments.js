@@ -1,7 +1,12 @@
 // src/modules/companies/api/departments.js
 import api from '../../../../api/axios';
 
-// LISTA departamentos de um estabelecimento
+/**
+ * ⚠️ LEGADO:
+ * Usa /api/departments com filtro por establishmentId.
+ * Mantido por compatibilidade, mas ideal é usar as funções aninhadas
+ * com companyId + establishmentId (multi-tenant + RBAC por empresa).
+ */
 export async function listDepartments(
   establishmentId,
   { page = 1, pageSize = 20, q = '' },
@@ -16,7 +21,6 @@ export async function listDepartments(
   return res.data?.data;
 }
 
-// OBTÉM 1 departamento
 export async function getDepartment(id, token) {
   const res = await api.get(`/api/departments/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -24,13 +28,12 @@ export async function getDepartment(id, token) {
   return res.data?.data;
 }
 
-// CRIA departamento dentro de um estabelecimento
 export async function createDepartment(establishmentId, payload, token) {
   const res = await api.post(
     '/api/departments',
     {
       ...payload,
-      establishmentId, // o controller lê de req.params.establishmentId OU body.establishmentId
+      establishmentId, // controller lê de body.establishmentId
     },
     {
       headers: { Authorization: `Bearer ${token}` },
@@ -39,7 +42,6 @@ export async function createDepartment(establishmentId, payload, token) {
   return res.data?.data;
 }
 
-// ATUALIZA departamento
 export async function updateDepartment(id, payload, token) {
   const res = await api.put(`/api/departments/${id}`, payload, {
     headers: { Authorization: `Bearer ${token}` },
@@ -47,10 +49,99 @@ export async function updateDepartment(id, payload, token) {
   return res.data?.data;
 }
 
-// REMOVE departamento
 export async function deleteDepartment(id, token) {
   const res = await api.delete(`/api/departments/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  return res.data?.data;
+}
+
+/**
+ * 🔐 NOVO (RECOMENDADO):
+ * Versão multi-tenant, alinhada ao establishment.child.routes.js:
+ *   /api/companies/:companyId/establishments/:establishmentId/departments
+ */
+
+export async function listDepartmentsInEstablishment(
+  companyId,
+  establishmentId,
+  { page = 1, pageSize = 20, q = '' } = {},
+  token
+) {
+  const res = await api.get(
+    `/api/companies/${companyId}/establishments/${establishmentId}/departments`,
+    {
+      params: { page, pageSize, q },
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  return res.data?.data;
+}
+
+export async function getDepartmentInEstablishment(
+  companyId,
+  establishmentId,
+  departmentId,
+  token
+) {
+  const res = await api.get(
+    `/api/companies/${companyId}/establishments/${establishmentId}/departments/${departmentId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  return res.data?.data;
+}
+
+export async function createDepartmentInEstablishment(
+  companyId,
+  establishmentId,
+  payload,
+  token
+) {
+  const res = await api.post(
+    `/api/companies/${companyId}/establishments/${establishmentId}/departments`,
+    payload,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  return res.data?.data;
+}
+
+export async function updateDepartmentInEstablishment(
+  companyId,
+  establishmentId,
+  departmentId,
+  payload,
+  token
+) {
+  const res = await api.put(
+    `/api/companies/${companyId}/establishments/${establishmentId}/departments/${departmentId}`,
+    payload,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  return res.data?.data;
+}
+
+export async function deleteDepartmentInEstablishment(
+  companyId,
+  establishmentId,
+  departmentId,
+  token
+) {
+  const res = await api.delete(
+    `/api/companies/${companyId}/establishments/${establishmentId}/departments/${departmentId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
   return res.data?.data;
 }

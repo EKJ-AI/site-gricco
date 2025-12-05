@@ -34,15 +34,27 @@ enum DocumentVersionStatus {
 }
 
 enum DocumentKind {
-  MAIN      // Documentos-mãe (programas, laudos principais, planos)
-  EVIDENCE  // Evidências e registros (listas, exames, medições, etc.)
+  MAIN // Documentos-mãe (programas, laudos principais, planos)
+  EVIDENCE // Evidências e registros (listas, exames, medições, etc.)
 }
 
 enum DocumentRelationType {
-  EVIDENCE     // B é evidência para A (ex: laudo → PGR)
-  SUPPORTING   // B complementa A (anexo, apêndice, etc.)
-  REPLACES     // B substitui A (revisão normativa, não técnica de arquivo)
+  EVIDENCE // B é evidência para A (ex: laudo → PGR)
+  SUPPORTING // B complementa A (anexo, apêndice, etc.)
+  REPLACES // B substitui A (revisão normativa, não técnica de arquivo)
   DERIVED_FROM // B foi gerado a partir de A (relatórios derivados)
+}
+
+enum EstablishmentDocumentRole {
+  MEMBER // só aparece na lista, SEM acesso a documentos
+  VIEWER // pode listar/ver/baixar documentos
+  ASSISTANT // pode tudo de VIEWER + enviar documentos/versões
+}
+
+enum DocumentAccessAction {
+  VIEW
+  DOWNLOAD
+  UPLOAD
 }
 
 /**
@@ -53,42 +65,49 @@ enum DocumentRelationType {
 // Enable CITEXT in a migration SQL:
 //   CREATE EXTENSION IF NOT EXISTS citext;
 model User {
-  id           Int       @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   name         String
-  email        String    @unique
+  email        String     @unique
   passwordHash String
   profileId    String
-  refreshToken String?   @unique
-  profile      Profile   @relation(fields: [profileId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  refreshToken String?    @unique
+  profile      Profile    @relation(fields: [profileId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   auditLogs    AuditLog[]
 
   // back-relations
   uploadedVersions DocumentVersion[]
   documentViews    DocumentView[]
 
+  portalEmployees Employee[] // back-rel sem @relation name, Prisma infere
+
+  // NOVO: empresas criadas por este usuário (Admin "local")
+  companiesCreated Company[] @relation("UserCompaniesCreated")
+
+  accessLogs DocumentAccessLog[] @relation("UserDocumentAccessLogs")
+
   @@index([createdAt])
 }
 
 model Profile {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String              @id @default(uuid())
+  name        String              @unique
   description String?
   users       User[]
   permissions ProfilePermission[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   deletedAt   DateTime?
 }
 
 model Permission {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String              @id @default(uuid())
+  name        String              @unique
   description String?
   profiles    ProfilePermission[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   deletedAt   DateTime?
 }
 
@@ -122,11 +141,11 @@ model AuditLog {
  * ======================
  */
 model Culture {
-  id          String   @id @db.VarChar(10) // ex: 'pt-BR'
+  id          String  @id @db.VarChar(10) // ex: 'pt-BR'
   description String
   icon        String
   order       Int
-  active      Boolean  @default(true)
+  active      Boolean @default(true)
   labels      Label[]
 
   @@index([active, order])
@@ -146,16 +165,15 @@ model Label {
   updatedAt   DateTime @updatedAt
 
   // Hashes p/ evitar índices enormes em (code/key)
-  keyHash     String   @db.Char(32)
-  codeHash    String?  @db.Char(32)
-
-  @@index([cultureId])
-  @@index([code])
-  @@index([key])
+  keyHash  String  @db.Char(32)
+  codeHash String? @db.Char(32)
 
   // Uniques por hash (NULL em codeHash permite múltiplos NULLs no Postgres)
   @@unique([cultureId, keyHash])
   @@unique([cultureId, codeHash])
+  @@index([cultureId])
+  @@index([code])
+  @@index([key])
 }
 
 /**
@@ -164,151 +182,166 @@ model Label {
  * ======================
  */
 model Company {
-  id               String          @id @default(cuid())
-  tenantId         String?
-  cnpj             String
-  legalName        String
-  tradeName        String?
-  startAt          DateTime?
-  companySize      String?
-  taxRegime        String?
-  fiscalEmail      String?
-  phone            String?
-  website          String?
+  id          String    @id @default(cuid())
+  tenantId    String?
+  cnpj        String
+  legalName   String
+  tradeName   String?
+  startAt     DateTime?
+  companySize String?
+  taxRegime   String?
+  fiscalEmail String?
+  phone       String?
+  website     String?
 
-  street           String?
-  number           String?
-  complement       String?
-  district         String?
-  city             String?
-  state            String?
-  zipCode          String?
-  ibgeCityCode     String?
+  street       String?
+  number       String?
+  complement   String?
+  district     String?
+  city         String?
+  state        String?
+  zipCode      String?
+  ibgeCityCode String?
 
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  establishments   Establishment[]
-  employees        Employee[]
+  // NOVO: quem criou a empresa (Admin "dono")
+  createdByUserId Int?
+  createdBy       User? @relation("UserCompaniesCreated", fields: [createdByUserId], references: [id])
 
+  establishments Establishment[]
+  employees      Employee[]
+
+  @@unique([cnpj]) // 👈 agora CNPJ é único no sistema inteiro
   @@unique([tenantId, cnpj])
+  @@index([createdByUserId])
 }
 
 model Establishment {
-  id                     String             @id @default(cuid())
-  companyId              String
-  cnpj                   String
-  nickname               String?
-  mainCnae               String?
-  riskLevel              Int?
-  isHeadquarter          Boolean            @default(false)
+  id            String  @id @default(cuid())
+  companyId     String
+  cnpj          String
+  nickname      String?
+  mainCnae      String?
+  riskLevel     Int?
+  isHeadquarter Boolean @default(false)
 
-  street                 String?
-  number                 String?
-  complement             String?
-  district               String?
-  city                   String?
-  state                  String?
-  zipCode                String?
-  ibgeCityCode           String?
+  street       String?
+  number       String?
+  complement   String?
+  district     String?
+  city         String?
+  state        String?
+  zipCode      String?
+  ibgeCityCode String?
 
-  geoLat                 Float?
-  geoLng                 Float?
-  licenseNumber          String?
-  licenseValidUntil      DateTime?
+  geoLat            Float?
+  geoLng            Float?
+  licenseNumber     String?
+  licenseValidUntil DateTime?
 
-  legalRepName           String?
-  legalRepCpf            String?
+  legalRepName String?
+  legalRepCpf  String?
 
-  company                Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  cnaes                  EstablishmentCNAE[]
-  departments            Department[]
-  documents              Document[]
-  employees              Employee[]
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cnaes       EstablishmentCNAE[]
+  departments Department[]
+  documents   Document[]
+  employees   Employee[]
 
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId, mainCnae])
 }
 
 model EstablishmentCNAE {
-  id                String         @id @default(cuid())
-  establishmentId   String
-  cnaeId            String
-  riskLevel         Int?
+  id              String @id @default(cuid())
+  establishmentId String
+  cnaeId          String
+  riskLevel       Int?
 
-  establishment     Establishment  @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
-  cnae              CNAE           @relation(fields: [cnaeId], references: [id])
+  establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  cnae          CNAE          @relation(fields: [cnaeId], references: [id])
 
   @@unique([establishmentId, cnaeId])
 }
 
 model CNAE {
-  id              String              @id @default(cuid())
-  code            String              @unique
-  title           String
+  id    String @id @default(cuid())
+  code  String @unique
+  title String
 
-  nrRisk          Int?
-  source          String?
-  updatedAt       DateTime?
+  nrRisk    Int?
+  source    String?
+  updatedAt DateTime?
 
-  establishments  EstablishmentCNAE[]
+  establishments EstablishmentCNAE[]
 }
 
 model Department {
-  id                String         @id @default(cuid())
-  establishmentId   String
-  name              String
-  description       String?
-  geoLat            Float?
-  geoLng            Float?
-  shift             String?
-  workload          String?
+  id              String  @id @default(cuid())
+  establishmentId String
+  name            String
+  description     String?
+  geoLat          Float?
+  geoLng          Float?
+  shift           String?
+  workload        String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  establishment     Establishment  @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
-  employees         Employee[]
+  establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  employees     Employee[]
 }
 
 model Employee {
-  id                String      @id @default(cuid())
-  companyId         String
-  establishmentId   String
-  cpf               String
-  name              String
-  birthDate         DateTime?
-  sex               String?
-  registration      String?
-  hiredAt           DateTime?
-  dismissedAt       DateTime?
-  bondType          String?
-  cboId             String?
-  jobTitle          String?
-  departmentId      String?
-  activityId        String?
-  email             String?
-  phone             String?
+  id              String    @id @default(cuid())
+  companyId       String
+  establishmentId String
+  cpf             String
+  name            String
+  birthDate       DateTime?
+  sex             String?
+  registration    String?
+  hiredAt         DateTime?
+  dismissedAt     DateTime?
+  bondType        String?
+  jobTitle        String? // já existia, usado como cargo/função
+  cboId           String?     // 👈 SEM @db.Uuid aqui
+  departmentId    String?
+  activityId      String?
+  email           String?
+  phone           String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  // NOVO: vínculo opcional com o usuário que acessa o portal
+  portalUserId       Int?
+  portalUser         User?                     @relation(fields: [portalUserId], references: [id]) // 👈 sugiro adicionar
+  portalDocumentRole EstablishmentDocumentRole @default(MEMBER)
 
-  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  establishment     Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
-  department        Department?   @relation(fields: [departmentId], references: [id])
-  cbo               CBO?          @relation(fields: [cboId], references: [id])
+  nationality       String? // Nacionalidade (ex.: "Brasileira", "Portuguesa")
+  preferredLanguage String? // Idioma (ex.: "pt-BR", "en-US", "es-ES")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  department    Department?   @relation(fields: [departmentId], references: [id])
+  cbo           CBO?          @relation(fields: [cboId], references: [id])
 
   @@unique([companyId, cpf])
   @@index([establishmentId])
+  @@index([portalUserId])
 }
 
 model CBO {
-  id            String     @id @default(cuid())
-  code          String     @unique
-  title         String
-  employees     Employee[]
+  id        String     @id @default(cuid())
+  code      String     @unique
+  title     String
+  employees Employee[]
 }
 
 /**
@@ -320,7 +353,7 @@ model DocumentType {
   id          String       @id @default(cuid())
   name        String       @unique
   description String?
-  kind        DocumentKind @default(MAIN)  // MAIN ou EVIDENCE
+  kind        DocumentKind @default(MAIN) // MAIN ou EVIDENCE
   documents   Document[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -330,34 +363,36 @@ model DocumentType {
 }
 
 model Document {
-  id                String           @id @default(cuid())
-  establishmentId   String
-  typeId            String
-  name              String
-  description       String?          // <--- NOVO
-  status            DocumentStatus   @default(ACTIVE)
+  id              String         @id @default(cuid())
+  establishmentId String
+  typeId          String
+  name            String
+  description     String? // <--- NOVO
+  status          DocumentStatus @default(ACTIVE)
 
-  currentVersionId  String?          @unique
-  currentVersion    DocumentVersion? @relation("DocumentToCurrentVersion", fields: [currentVersionId], references: [id])
+  currentVersionId String?          @unique
+  currentVersion   DocumentVersion? @relation("DocumentToCurrentVersion", fields: [currentVersionId], references: [id])
 
-  versions          DocumentVersion[] @relation("DocumentToVersions")
+  versions DocumentVersion[] @relation("DocumentToVersions")
 
-  mimetype          String?
-  hash              String?
-  size              Int?
+  mimetype String?
+  hash     String?
+  size     Int?
 
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  establishment     Establishment    @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
-  type              DocumentType     @relation(fields: [typeId], references: [id])
+  establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  type          DocumentType  @relation(fields: [typeId], references: [id])
 
-  views             DocumentView[]
+  views DocumentView[]
 
   // Relações com outros documentos (evidências, anexos, etc.)
-  relatedAsParent   DocumentRelation[] @relation("DocumentRelationsFrom")
-  relatedAsChild    DocumentRelation[] @relation("DocumentRelationsTo")
+  relatedAsParent DocumentRelation[] @relation("DocumentRelationsFrom")
+  relatedAsChild  DocumentRelation[] @relation("DocumentRelationsTo")
+
+  accessLogs DocumentAccessLog[] @relation("DocumentAccessLogs")
 
   @@index([establishmentId, typeId])
   @@index([name])
@@ -370,60 +405,83 @@ model DocumentRelation {
   toDocumentId   String
   relationType   DocumentRelationType
 
-  fromDocument   Document             @relation("DocumentRelationsFrom", fields: [fromDocumentId], references: [id], onDelete: Cascade)
-  toDocument     Document             @relation("DocumentRelationsTo", fields: [toDocumentId], references: [id], onDelete: Cascade)
+  fromDocument Document @relation("DocumentRelationsFrom", fields: [fromDocumentId], references: [id], onDelete: Cascade)
+  toDocument   Document @relation("DocumentRelationsTo", fields: [toDocumentId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime             @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([fromDocumentId, toDocumentId, relationType])
   @@index([toDocumentId])
 }
 
 model DocumentVersion {
-  id                String                 @id @default(cuid())
-  documentId        String
-  versionNumber     Int
-  versionStatus     DocumentVersionStatus  @default(PUBLISHED)
+  id            String                @id @default(cuid())
+  documentId    String
+  versionNumber Int
+  versionStatus DocumentVersionStatus @default(PUBLISHED)
 
-  filename          String
-  storagePath       String                 // ex.: /uploads/<companyId>/<establishmentId>/<documentId>/<versionId>/<filename>
-  storageKey        String?
-  mimetype          String
-  size              Int
-  sha256            String
+  filename    String
+  storagePath String // ex.: /uploads/<companyId>/<establishmentId>/<documentId>/<versionId>/<filename>
+  storageKey  String?
+  mimetype    String
+  size        Int
+  sha256      String
 
-  uploadedByUserId  Int?
-  activatedAt       DateTime?
+  uploadedByUserId Int?
+  activatedAt      DateTime?
 
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  currentOf         Document?              @relation("DocumentToCurrentVersion")
+  currentOf Document? @relation("DocumentToCurrentVersion")
 
-  document          Document               @relation("DocumentToVersions", fields: [documentId], references: [id], onDelete: Cascade)
-  uploadedBy        User?                  @relation(fields: [uploadedByUserId], references: [id])
+  document   Document @relation("DocumentToVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedByUserId], references: [id])
 
-  views             DocumentView[]
+  views DocumentView[]
 
+  accessLogs DocumentAccessLog[] @relation("DocumentVersionAccessLogs")
+
+  @@unique([documentId, versionNumber])
   @@index([documentId, versionNumber], map: "idx_doc_version_sequence")
   @@index([versionStatus])
-  @@unique([documentId, versionNumber])
 }
 
 model DocumentView {
-  id                String          @id @default(cuid())
+  id                String   @id @default(cuid())
   documentId        String
   documentVersionId String
   userId            Int?
-  viewedAt          DateTime        @default(now())
-  ip                String?         @db.Inet
+  viewedAt          DateTime @default(now())
+  ip                String?  @db.Inet
   userAgent         String?
 
-  document          Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  version           DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
-  user              User?           @relation(fields: [userId], references: [id])
+  document Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version  DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  user     User?           @relation(fields: [userId], references: [id])
 
   @@index([documentId, documentVersionId, viewedAt])
   @@index([userId, viewedAt])
+}
+
+model DocumentAccessLog {
+  id                String  @id @default(cuid())
+  documentId        String
+  documentVersionId String?
+  userId            Int?
+
+  action    DocumentAccessAction
+  ip        String?
+  userAgent String?
+  createdAt DateTime             @default(now())
+
+  // 👇 Lados das relações (nomes batendo com os modelos acima)
+  document Document         @relation("DocumentAccessLogs", fields: [documentId], references: [id])
+  version  DocumentVersion? @relation("DocumentVersionAccessLogs", fields: [documentVersionId], references: [id])
+  user     User?            @relation("UserDocumentAccessLogs", fields: [userId], references: [id])
+
+  @@index([documentId, createdAt])
+  @@index([documentVersionId])
+  @@index([userId])
 }

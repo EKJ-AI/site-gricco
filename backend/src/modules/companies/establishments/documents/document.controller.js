@@ -6,6 +6,16 @@ import { registerAudit } from '../../../../utils/audit.js';
 
 const DOCUMENT_STATUS = ['DRAFT', 'ACTIVE', 'INACTIVE'];
 
+/**
+ * LIST: documentos do estabelecimento
+ * GET /api/companies/:companyId/establishments/:establishmentId/documents
+ *
+ * Controle de acesso já foi feito em:
+ *  - authenticateToken
+ *  - bindCompany
+ *  - bindEstablishment
+ *  - ensureDocumentAccess({ mode: 'read' })
+ */
 export async function list(req, res) {
   try {
     const { establishmentId } = req.params;
@@ -21,11 +31,21 @@ export async function list(req, res) {
     const where = {
       establishmentId,
       deletedAt: null,
-      ...(status && DOCUMENT_STATUS.includes(status)
-        ? { status }
-        : {}),
+      ...(status && DOCUMENT_STATUS.includes(status) ? { status } : {}),
       ...(typeId ? { typeId } : {}),
-      ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { description: { contains: q, mode: 'insensitive' } },
+              {
+                type: {
+                  name: { contains: q, mode: 'insensitive' },
+                },
+              },
+            ],
+          }
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -42,18 +62,33 @@ export async function list(req, res) {
       }),
     ]);
 
-    res.json({ success: true, data: { total, page, pageSize, items } });
+    return res.json({
+      success: true,
+      data: { total, page, pageSize, items },
+    });
   } catch (err) {
+    console.error('[DOCUMENT] list error', err);
     const mapped = prismaErrorToHttp(err);
-    if (mapped)
+    if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
-    res.status(500).json({ success: false, message: 'Internal error' });
+    }
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
   }
 }
 
+/**
+ * GET: documento específico
+ * GET /api/companies/:companyId/establishments/:establishmentId/documents/:id
+ *
+ * bindDocument já garante que o documento pertence ao estabelecimento.
+ * Permissão já checada em ensureDocumentAccess({ mode: 'read' }).
+ */
 export async function getById(req, res) {
   try {
     const { id } = req.params;
+
     const doc = await prisma.document.findUnique({
       where: { id },
       include: {
@@ -62,19 +97,33 @@ export async function getById(req, res) {
         versions: { orderBy: { createdAt: 'desc' } },
       },
     });
-    if (!doc)
+
+    if (!doc) {
       return res
         .status(404)
         .json({ success: false, message: 'Document not found' });
-    res.json({ success: true, data: doc });
+    }
+
+    return res.json({ success: true, data: doc });
   } catch (err) {
+    console.error('[DOCUMENT] getById error', err);
     const mapped = prismaErrorToHttp(err);
-    if (mapped)
+    if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
-    res.status(500).json({ success: false, message: 'Internal error' });
+    }
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
   }
 }
 
+/**
+ * CREATE
+ * POST /api/companies/:companyId/establishments/:establishmentId/documents
+ *
+ * injectIdsToBody já injetou companyId/establishmentId.
+ * Permissão já checada em ensureDocumentAccess({ mode: 'write' }).
+ */
 export async function create(req, res) {
   try {
     const data = req.body || {};
@@ -99,10 +148,10 @@ export async function create(req, res) {
         .json({ success: false, message: 'typeId is required' });
     }
 
-    // garante que o establishment existe
+    // garante que o establishment existe (melhor erro que FK quebrada)
     const est = await prisma.establishment.findUnique({
       where: { id: establishmentId },
-      select: { id: true, companyId: true },
+      select: { id: true },
     });
     if (!est) {
       return res
@@ -110,7 +159,7 @@ export async function create(req, res) {
         .json({ success: false, message: 'Invalid establishmentId' });
     }
 
-    // garante que o tipo existe (melhor mensagem do que erro de FK)
+    // garante que o tipo existe
     const docType = await prisma.documentType.findUnique({
       where: { id: data.typeId },
       select: { id: true },
@@ -133,7 +182,7 @@ export async function create(req, res) {
         establishmentId: est.id,
         typeId: data.typeId,
         status,
-        // currentVersionId é nulo por default
+        // currentVersionId continua nulo até subir/ativar versão
       },
     });
 
@@ -145,19 +194,39 @@ export async function create(req, res) {
       details: created.name,
     });
 
-    res.status(201).json({ success: true, data: created });
+    return res.status(201).json({ success: true, data: created });
   } catch (err) {
+    console.error('[DOCUMENT] create error', err);
     const mapped = prismaErrorToHttp(err);
-    if (mapped)
+    if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
-    res.status(500).json({ success: false, message: 'Internal error' });
+    }
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
   }
 }
 
+/**
+ * UPDATE
+ * PUT /api/companies/:companyId/establishments/:establishmentId/documents/:id
+ *
+ * Permissão já checada em ensureDocumentAccess({ mode: 'write' }).
+ */
 export async function update(req, res) {
   try {
     const { id } = req.params;
     const data = req.body || {};
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found' });
+    }
 
     const updateData = {};
 
@@ -172,10 +241,9 @@ export async function update(req, res) {
     }
     if (data.status !== undefined) {
       if (!DOCUMENT_STATUS.includes(data.status)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid status',
-        });
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid status' });
       }
       updateData.status = data.status;
     }
@@ -192,19 +260,40 @@ export async function update(req, res) {
       entityId: id,
       details: JSON.stringify(Object.keys(updateData)),
     });
-    res.json({ success: true, data: updated });
+
+    return res.json({ success: true, data: updated });
   } catch (err) {
+    console.error('[DOCUMENT] update error', err);
     const mapped = prismaErrorToHttp(err);
-    if (mapped)
+    if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
-    res.status(500).json({ success: false, message: 'Internal error' });
+    }
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
   }
 }
 
+/**
+ * DELETE (soft-delete)
+ * DELETE /api/companies/:companyId/establishments/:establishmentId/documents/:id
+ *
+ * Permissão já checada em ensureDocumentAccess({ mode: 'write' }).
+ */
 export async function remove(req, res) {
   try {
     const { id } = req.params;
-    // soft-delete: marca deletedAt e deixa status INACTIVE
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found' });
+    }
+
     const deleted = await prisma.document.update({
       where: { id },
       data: {
@@ -212,6 +301,7 @@ export async function remove(req, res) {
         status: 'INACTIVE',
       },
     });
+
     await registerAudit({
       userId: req.user?.id,
       action: 'DELETE',
@@ -219,26 +309,51 @@ export async function remove(req, res) {
       entityId: id,
       details: '',
     });
-    res.json({
+
+    return res.json({
       success: true,
       data: deleted,
       message: 'Document soft-deleted',
     });
   } catch (err) {
+    console.error('[DOCUMENT] remove error', err);
     const mapped = prismaErrorToHttp(err);
-    if (mapped)
+    if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
-    res.status(500).json({ success: false, message: 'Internal error' });
+    }
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
   }
 }
 
-// troca a versão "vigente" (currentVersionId)
+/**
+ * setCurrentVersion
+ * (se você ainda estiver usando essa rota custom; normalmente hoje usamos
+ * as rotas do documentVersion.controller para ativar/arquivar versões)
+ *
+ * Permissão deve ser garantida na rota com ensureDocumentAccess({ mode: 'write' })
+ * + bindDocument.
+ */
 export async function setCurrentVersion(req, res) {
   try {
     const { id, versionId } = req.params;
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found' });
+    }
+
     const ver = await prisma.documentVersion.findUnique({
       where: { id: versionId },
     });
+
     if (!ver || ver.documentId !== id) {
       return res.status(400).json({
         success: false,
@@ -279,11 +394,16 @@ export async function setCurrentVersion(req, res) {
       entityId: id,
       details: `currentVersionId=${versionId}`,
     });
-    res.json({ success: true, data: updated });
+
+    return res.json({ success: true, data: updated });
   } catch (err) {
+    console.error('[DOCUMENT] setCurrentVersion error', err);
     const mapped = prismaErrorToHttp(err);
-    if (mapped)
+    if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
-    res.status(500).json({ success: false, message: 'Internal error' });
+    }
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
   }
 }

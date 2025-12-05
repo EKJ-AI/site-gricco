@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { createCompany, getCompany, updateCompany } from '../api/companies';
 import CompanyForm from './CompanyForm.jsx';
+import usePermission from '../../../auth/hooks/usePermission'; // 👈 ADICIONADO
 
 export default function CompanyFormPage() {
   const params = useParams();
@@ -16,6 +17,10 @@ export default function CompanyFormPage() {
   const [loading, setLoading] = useState(mode === 'edit');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // 👇 Permissões
+  const canUpdate = usePermission('company.update');
+  const canCreate = usePermission('company.create');
 
   useEffect(() => {
     if (mode !== 'edit' || !companyId) {
@@ -55,9 +60,18 @@ export default function CompanyFormPage() {
     setError('');
     try {
       if (mode === 'edit' && companyId) {
+        // se não pode atualizar, nem tenta enviar
+        if (!canUpdate) {
+          setError('You do not have permission to update this company.');
+          return;
+        }
         await updateCompany(companyId, payload, accessToken);
       } else {
         // criação – backend já cria a matriz automaticamente
+        if (!canCreate) {
+          setError('You do not have permission to create companies.');
+          return;
+        }
         await createCompany(payload, accessToken);
       }
       navigate('/companies');
@@ -78,6 +92,9 @@ export default function CompanyFormPage() {
     );
   }
 
+  const readOnly =
+    mode === 'edit' && !canUpdate; // 👈 não deixa editar se não tiver company.update
+
   return (
     <div className="container">
       <h2>{mode === 'edit' ? 'Edit Company' : 'New Company'}</h2>
@@ -88,7 +105,7 @@ export default function CompanyFormPage() {
         initialData={initialData || {}}
         onSubmit={handleSubmit}
         submitting={submitting}
-        readOnly={false}
+        readOnly={readOnly}
       />
     </div>
   );

@@ -321,7 +321,11 @@ import * as userController from './user.controller.js';
 
 const router = Router();
 
-router.get('/me', authenticateToken, authorizePermissions(['user.read']), userController.getMe);
+router.get('/me', 
+  authenticateToken, 
+  //authorizePermissions(['user.read']), 
+  userController.getMe
+);
 router.get(
   '/',
   authenticateToken,

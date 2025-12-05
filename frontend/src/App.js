@@ -1,4 +1,3 @@
-// src/App.js
 import I18nGate from './shared/i18n/I18nGate';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './modules/auth/contexts/AuthContext';
@@ -99,10 +98,7 @@ function App() {
                     element={<ServicePage {...qsmsmanagement} />}
                   />
                   <Route path="/offshore" element={<ServicePage {...offshore} />} />
-                  <Route
-                    path="/etica-e-compliance"
-                    element={<Etich />}
-                  />
+                  <Route path="/etica-e-compliance" element={<Etich />} />
                   <Route
                     path="/politica-de-compliance"
                     element={<Compliance />}
@@ -141,15 +137,6 @@ function App() {
                   />
 
                   {/* Admin - Document Types */}
-                  {/* <Route
-                    path="/admin/document-types"
-                    element={
-                      <ProtectedRoute permissions={['documentType.read']}>
-                        <DocumentTypes />
-                      </ProtectedRoute>
-                    }
-                  /> */}
-
                   <Route
                     path="/admin/document-types"
                     element={
@@ -158,7 +145,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/admin/document-types/new"
                     element={
@@ -167,7 +153,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/admin/document-types/:documentTypeId/edit"
                     element={
@@ -195,7 +180,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/users/edit/:id"
                     element={
@@ -213,7 +197,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/permissions"
                     element={
@@ -222,7 +205,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/audit"
                     element={
@@ -231,7 +213,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/settings"
                     element={
@@ -254,7 +235,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId"
                     element={
@@ -273,7 +253,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId/edit"
                     element={
@@ -302,7 +281,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId/establishments/:establishmentId/edit"
                     element={
@@ -348,6 +326,22 @@ function App() {
                         </ProtectedRoute>
                       }
                     />
+                    <Route
+                      path="departments/new"
+                      element={
+                        <ProtectedRoute permissions={['department.create']}>
+                          <DepartmentForm mode="create" />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="departments/:departmentId/edit"
+                      element={
+                        <ProtectedRoute permissions={['department.update']}>
+                          <DepartmentForm mode="edit" />
+                        </ProtectedRoute>
+                      }
+                    />
                     {/* Employees list (inside establishment) */}
                     <Route
                       path="employees"
@@ -368,7 +362,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId/establishments/:establishmentId/documents/:documentId/edit"
                     element={
@@ -397,7 +390,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId/employees/new"
                     element={
@@ -406,7 +398,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId/employees/:employeeId/edit"
                     element={
@@ -424,7 +415,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/companies/:companyId/establishments/:establishmentId/employees/:employeeId/edit"
                     element={

@@ -23,6 +23,13 @@ const Sidebar = () => {
   const linkClass = ({ isActive }) =>
     "sidebar-link" + (isActive ? " sidebar-link--active" : "");
 
+  // contexto de portal (colaborador/sub-admin vinculado a Employee)
+  const portalContext = user.portalContext || null;
+  const hasPortalEstablishment =
+    portalContext &&
+    portalContext.companyId &&
+    portalContext.establishmentId;
+
   return (
     <aside className="sidebar">
       {/* Cabeçalho / Perfil */}
@@ -41,6 +48,25 @@ const Sidebar = () => {
       {/* MENU PRINCIPAL */}
       <nav className="sidebar-nav">
         {/* =========================
+            ATALHO PORTAL / SUB-ADMIN
+           ========================= */}
+        {hasPortalEstablishment && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">Portal</div>
+
+            <RequirePermission permission="document.read">
+              <NavLink
+                to={`/companies/${portalContext.companyId}/establishments/${portalContext.establishmentId}/documents`}
+                className={linkClass}
+              >
+                <span className="sidebar-link-icon file-icon" />
+                <span>Documentos do Estabelecimento</span>
+              </NavLink>
+            </RequirePermission>
+          </div>
+        )}
+
+        {/* =========================
             Navegação principal
            ========================= */}
         <div className="sidebar-section">
@@ -52,8 +78,19 @@ const Sidebar = () => {
             </NavLink>
           </RequirePermission>
 
-          {/* Empresas */}
-          <RequirePermission permission="company.read">
+          {/* Empresas (inclui quem só tem perm de Establishment) */}
+          <RequirePermission
+            permissions={[
+              "company.read",
+              "company.create",
+              "company.update",
+              "company.delete",
+              "establishment.read",
+              "establishment.create",
+              "establishment.update",
+              "establishment.delete",
+            ]}
+          >
             <NavLink to="/companies" className={linkClass}>
               <span className="sidebar-link-icon document-icon" />
               <span>Empresas</span>
@@ -116,7 +153,7 @@ const Sidebar = () => {
           </RequirePermission>
 
           {/* Logs */}
-          <RequirePermission permission="logs.read">
+          <RequirePermission permission="audit.read">
             <NavLink to="/audit" className={linkClass}>
               <span className="sidebar-link-icon report-icon" />
               <span>Logs</span>
@@ -138,7 +175,6 @@ const Sidebar = () => {
         <div className="sidebar-section">
           <div className="sidebar-section-title">Traduções</div>
 
-          {/* Translates */}
           <RequirePermission permission="translation.read">
             <NavLink
               to="/admin/translations/translates"
@@ -149,7 +185,6 @@ const Sidebar = () => {
             </NavLink>
           </RequirePermission>
 
-          {/* Cultures */}
           <RequirePermission permission="translation.read">
             <NavLink to="/admin/translations/cultures" className={linkClass}>
               <span className="sidebar-link-icon globe-icon" />
@@ -157,7 +192,6 @@ const Sidebar = () => {
             </NavLink>
           </RequirePermission>
 
-          {/* Labels / Missing */}
           <RequirePermission permission="translation.read">
             <NavLink to="/admin/translations/labels" className={linkClass}>
               <span className="sidebar-link-icon globe-icon" />

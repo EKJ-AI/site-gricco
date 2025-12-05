@@ -165,7 +165,7 @@ export async function listRelations(
   token
 ) {
   const params = { page, pageSize };
-  if (direction) params.direction = direction; // 'parent' or 'child'
+  if (direction) params.direction = direction; // 'parent' | 'child' | 'all'
   if (relationType) params.relationType = relationType;
 
   const res = await api.get(
@@ -224,7 +224,7 @@ export async function searchDocumentTypes(
     pageSize,
   };
   if (kind) {
-    params.kind = kind; // MAIN / EVIDENCE / OTHER
+    params.kind = kind; // MAIN / EVIDENCE / OTHER / SECONDARY
   }
 
   const res = await api.get('/api/documentTypes', {
@@ -232,4 +232,34 @@ export async function searchDocumentTypes(
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data?.data;
+}
+
+/**
+ * Helper para construir a URL de acesso ao arquivo
+ * (passando pelo endpoint que registra VIEW / DOWNLOAD).
+ */
+export function buildDocumentFileUrl(
+  companyId,
+  establishmentId,
+  documentId,
+  versionId,
+  mode = 'view'
+) {
+  const baseURL = api.defaults.baseURL || '';
+  const safeBase = baseURL.replace(/\/+$/, ''); // tira barra final
+  const safeMode = mode === 'download' ? 'download' : 'view';
+
+  // tenta pegar o token atual do axios (setado no AuthContext)
+  const authHeader = api.defaults.headers.common?.Authorization || '';
+  const rawToken = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : authHeader;
+  const tokenParam = rawToken
+    ? `&token=${encodeURIComponent(rawToken)}`
+    : '';
+
+  // sua API está respondendo em /api/... (vide logs)
+  const path = `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}/file?mode=${safeMode}`;
+
+  return `${safeBase}${path}${tokenParam}`;
 }

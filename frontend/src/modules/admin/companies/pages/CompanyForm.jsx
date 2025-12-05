@@ -1,3 +1,4 @@
+// src/modules/admin/companies/components/CompanyForm.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
@@ -179,7 +180,7 @@ export default function CompanyForm({
       setInternalSubmitting(false);
     }
   }
-  alert("CompanyForm");
+
   return (
     <form className="form" onSubmit={handleSubmit}>
       {errorMessage && <div className="error-message">{errorMessage}</div>}

@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 import api from '../../../api/axios';
-import { decodeJwt } from '../../../shared/utils/jwt';
 
 const AuthContext = createContext();
 
@@ -10,10 +15,7 @@ export function AuthProvider({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Flag para evitar refresh durante/logout
   const isLoggingOutRef = useRef(false);
-
-  // --- helpers internos ---
 
   // Limpa apenas o estado local (sem chamar servidor)
   const hardResetAuthState = () => {
@@ -24,33 +26,38 @@ export function AuthProvider({ children }) {
     delete api.defaults.headers.common['Authorization'];
   };
 
-  const setUserFromApi = async (token) => {
-    try {
-      const res = await api.get('/api/users/me', {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
-      const apiUser = res.data?.user;
-      if (!apiUser) throw new Error('Resposta sem usuário');
-
-      setUser(apiUser);
-      setPermissions(apiUser?.profile?.permissions || []);
-    } catch (err) {
-      console.error('[Auth] /users/me falhou:', err?.message || err);
-      hardResetAuthState();
-      throw err;
+  // Aplica resposta de login/refresh (token + user + portalContext)
+  const applyAuthResponse = (token, apiUser, portalContext) => {
+    if (!token || !apiUser) {
+      throw new Error('Resposta de autenticação inválida (sem token ou usuário).');
     }
-  };
 
-  const login = async (token, storeLocal = true) => {
-    if (storeLocal) {
-      localStorage.setItem('access_token', token);
-    }
+    localStorage.setItem('access_token', token);
     setAccessToken(token);
+
+    const fullUser = { ...apiUser, portalContext: portalContext || null };
+    setUser(fullUser);
+    setPermissions(fullUser.profile?.permissions || []);
+
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    await setUserFromApi(token);
+
+    return fullUser;
   };
 
+  // -------- LOGIN: chama /api/auth/login --------
+  const login = async (email, password) => {
+    const res = await api.post(
+      '/api/auth/login',
+      { email, password },
+      { withCredentials: true }
+    );
+
+    const { accessToken: token, user: apiUser, portalContext } = res.data || {};
+    const fullUser = applyAuthResponse(token, apiUser, portalContext);
+    return fullUser; // usado pelo LoginPage para decidir para onde navegar
+  };
+
+  // -------- REFRESH: chama /api/auth/refresh --------
   const tryRefresh = async () => {
     try {
       const res = await api.post(
@@ -58,29 +65,34 @@ export function AuthProvider({ children }) {
         {},
         { withCredentials: true }
       );
-      const newToken = res.data?.accessToken;
-      if (!newToken) throw new Error('Sem accessToken no refresh');
 
-      await login(newToken, false);
-      return newToken;
+      const { accessToken: token, user: apiUser, portalContext } = res.data || {};
+      applyAuthResponse(token, apiUser, portalContext);
+      return token;
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message;
 
-      // 400 = sem cookie (usuário nunca logou ou cookie expirou)
-      // 401 = refresh inválido/expirado → trata como sessão expirada
       if (status === 400 || status === 401) {
-        console.info('[Auth] Refresh não disponível ou inválido:', status, msg);
+        console.info(
+          '[Auth] Refresh não disponível ou inválido:',
+          status,
+          msg
+        );
         hardResetAuthState();
-        return null; // NÃO relança erro → initAuth segue fluxo "não logado"
+        return null;
       }
 
-      console.warn('[Auth] Refresh falhou (erro inesperado):', err?.message || err);
+      console.warn(
+        '[Auth] Refresh falhou (erro inesperado):',
+        err?.message || err
+      );
       hardResetAuthState();
-      throw err; // só erros realmente inesperados sobem
+      throw err;
     }
   };
 
+  // -------- LOGOUT --------
   const logout = async () => {
     try {
       isLoggingOutRef.current = true;
@@ -97,27 +109,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // --- initAuth (ao montar app) ---
+  // -------- initAuth (ao carregar a app) --------
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const savedToken = localStorage.getItem('access_token');
-
-        if (savedToken) {
-          const decoded = decodeJwt(savedToken);
-          if (decoded && decoded.exp * 1000 > Date.now()) {
-            // token ainda válido → reaproveita
-            await login(savedToken, false);
-          } else {
-            // token expirado → tenta refresh
-            await tryRefresh();
-          }
-        } else {
-          // nunca logou neste browser → tenta refresh (pode existir cookie)
-          await tryRefresh();
-        }
+        // Tenta reidratar sessão usando o refresh token no cookie HttpOnly
+        await tryRefresh();
       } catch (error) {
-        // Só cai aqui se tryRefresh der erro inesperado (500, network, etc.)
         console.error('[Auth] initAuth error (inesperado):', error);
         hardResetAuthState();
       } finally {
@@ -128,12 +126,13 @@ export function AuthProvider({ children }) {
     initAuth();
   }, []);
 
-  // --- interceptor 401 → tenta refresh automático ---
+  // -------- interceptor 401 → tenta refresh automático --------
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (res) => res,
       async (error) => {
         const original = error.config || {};
+
         if (
           error.response &&
           error.response.status === 401 &&
@@ -149,17 +148,21 @@ export function AuthProvider({ children }) {
               return api(original);
             }
           } catch {
-            // tryRefresh já limpou estado; segue rejeitando
+            // tryRefresh já limpou o estado, segue rejeitando
           }
         }
+
         return Promise.reject(error);
       }
     );
+
     return () => api.interceptors.response.eject(interceptor);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, permissions, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{ user, accessToken, permissions, login, logout, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,7 +1,7 @@
-// src/modules/companies/components/DepartmentTable.jsx
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+// import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function DepartmentTable({ rows = [], onDelete }) {
   const { companyId, establishmentId } = useParams();
@@ -23,14 +23,18 @@ export default function DepartmentTable({ rows = [], onDelete }) {
             <td>{d.shift || '-'}</td>
             <td>{d.workload || '-'}</td>
             <td style={{ textAlign: 'right' }}>
-              <Link
-                style={{ marginRight: 8 }}
-                to={`/companies/${companyId}/establishments/${establishmentId}/departments/${d.id}/edit`}
-              >
-                Edit
-              </Link>
+              {/* Editar departamento → department.update */}
+              <RequirePermission permissions={['department.update']}>
+                <Link
+                  style={{ marginRight: 8 }}
+                  to={`/companies/${companyId}/establishments/${establishmentId}/departments/${d.id}/edit`}
+                >
+                  Edit
+                </Link>
+              </RequirePermission>
 
-              <ProtectedRoute inline permissions={['department.delete']}>
+              {/* Deletar departamento → department.delete */}
+              <RequirePermission permissions={['department.delete']}>
                 <button
                   type="button"
                   className="danger"
@@ -38,7 +42,7 @@ export default function DepartmentTable({ rows = [], onDelete }) {
                 >
                   Delete
                 </button>
-              </ProtectedRoute>
+              </RequirePermission>
             </td>
           </tr>
         ))}

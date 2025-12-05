@@ -1,6 +1,7 @@
 // src/modules/companies/components/Tabs.jsx
 import React from 'react';
 import { NavLink, useParams } from 'react-router-dom';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function Tabs() {
   const { companyId, establishmentId } = useParams();
@@ -22,17 +23,26 @@ export default function Tabs() {
         marginBottom: 12,
       }}
     >
-      <NavLink to={`${base}/documents`}>
-        Documents
-      </NavLink>
+      {/* Documentos → exige document.read */}
+      <RequirePermission permissions={['document.read']}>
+        <NavLink to={`${base}/documents`}>
+          Documents
+        </NavLink>
+      </RequirePermission>
 
-      <NavLink to={`${base}/departments`}>
-        Departments
-      </NavLink>
+      {/* Departamentos → exige department.read */}
+      <RequirePermission permissions={['department.read']}>
+        <NavLink to={`${base}/departments`}>
+          Departments
+        </NavLink>
+      </RequirePermission>
 
-      <NavLink to={`${base}/employees`}>
-        Employees
-      </NavLink>
+      {/* Colaboradores → exige employee.read */}
+      <RequirePermission permissions={['employee.read']}>
+        <NavLink to={`${base}/employees`}>
+          Employees
+        </NavLink>
+      </RequirePermission>
     </div>
   );
 }

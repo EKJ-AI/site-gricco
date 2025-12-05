@@ -1,3 +1,4 @@
+// src/modules/admin/companies/pages/EstablishmentList.jsx
 import React, { useEffect, useState } from 'react';
 import {
   listEstablishments,
@@ -7,7 +8,7 @@ import EstablishmentCard from '../components/EstablishmentCard.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
 import { useParams, Link } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function EstablishmentList() {
   const { accessToken } = useAuth();
@@ -28,12 +29,14 @@ export default function EstablishmentList() {
       const res = await listEstablishments(
         companyId,
         { page, pageSize: 12, q },
-        accessToken
+        accessToken,
       );
       setData(res || { items: [], total: 0, page, pageSize: 12 });
     } catch (e) {
-      console.error(e);
-      setErr('Failed to load establishments.');
+      console.error('[EstablishmentList] listEstablishments error', e);
+      const msg =
+        e?.response?.data?.message || 'Failed to load establishments.';
+      setErr(msg);
       setData({ items: [], total: 0, page, pageSize: 12 });
     }
   };
@@ -47,11 +50,15 @@ export default function EstablishmentList() {
     if (!window.confirm('Confirm delete?')) return;
     setErr('');
     try {
-      await deleteEstablishment(id, accessToken);
+      await deleteEstablishment(companyId, id, accessToken);
+      // recarrega a página atual
       fetcher(data.page);
     } catch (e) {
-      console.error(e);
-      setErr('Failed to delete establishment.');
+      console.error('[EstablishmentList] deleteEstablishment error', e);
+      const msg =
+        e?.response?.data?.message || 'Failed to delete establishment.';
+      setErr(msg);
+      alert(msg);
     }
   };
 
@@ -67,14 +74,14 @@ export default function EstablishmentList() {
           />
           <button onClick={() => fetcher(1)}>Search</button>
 
-          <ProtectedRoute inline permissions={['establishment.create']}>
+          <RequirePermission permission="establishment.create">
             <Link
               to={`/companies/${companyId}/establishments/new`}
               className="primary"
             >
               New Establishment
             </Link>
-          </ProtectedRoute>
+          </RequirePermission>
         </div>
       </div>
 

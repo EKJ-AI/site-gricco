@@ -1,4 +1,3 @@
-// src/modules/companies/company.routes.js
 import { Router } from 'express';
 import * as ctrl from './company.controller.js';
 import { authenticateToken } from '../auth/auth.middleware.js';
@@ -12,14 +11,14 @@ router.get(
   '/',
   authenticateToken,
   authorizePermissions('company.read'),
-  ctrl.list
+  ctrl.list,
 );
 
 router.get(
   '/:id',
   authenticateToken,
   authorizePermissions('company.read'),
-  ctrl.getById
+  ctrl.getById,
 );
 
 router.post(
@@ -27,7 +26,7 @@ router.post(
   authenticateToken,
   auditLog,
   authorizePermissions('company.create'),
-  ctrl.create
+  ctrl.create,
 );
 
 router.put(
@@ -35,7 +34,7 @@ router.put(
   authenticateToken,
   auditLog,
   authorizePermissions('company.update'),
-  ctrl.update
+  ctrl.update,
 );
 
 router.delete(
@@ -43,13 +42,10 @@ router.delete(
   authenticateToken,
   auditLog,
   authorizePermissions('company.delete'),
-  ctrl.remove
+  ctrl.remove,
 );
 
 // /api/companies/:companyId/establishments/...
-router.use(
-  '/:companyId/establishments',
-  establishmentChildRoutes
-);
+router.use('/:companyId/establishments', establishmentChildRoutes);
 
 export default router;

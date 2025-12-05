@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import {
   listDocumentTypes,
   deleteDocumentType,
@@ -92,7 +92,7 @@ export default function DocumentTypeList() {
         />
         <button onClick={() => fetcher(1)}>Search</button>
 
-        <ProtectedRoute inline permissions={['documentType.create']}>
+        <RequirePermission permission="documentType.create">
           <button
             type="button"
             className="primary"
@@ -100,7 +100,7 @@ export default function DocumentTypeList() {
           >
             New Document Type
           </button>
-        </ProtectedRoute>
+        </RequirePermission>
       </div>
 
       {err && <div className="error-message">{err}</div>}
@@ -125,23 +125,23 @@ export default function DocumentTypeList() {
                   <td>{KIND_LABEL[t.kind] || t.kind || '-'}</td>
                   <td>{t.description || '—'}</td>
                   <td style={{ textAlign: 'right' }}>
-                    <ProtectedRoute inline permissions={['documentType.update']}>
+                    <RequirePermission permission="documentType.update">
                       <Link
                         style={{ marginRight: 8 }}
                         to={`/admin/document-types/${t.id}/edit`}
                       >
                         Edit
                       </Link>
-                    </ProtectedRoute>
+                    </RequirePermission>
 
-                    <ProtectedRoute inline permissions={['documentType.delete']}>
+                    <RequirePermission permission="documentType.delete">
                       <button
                         type="button"
                         onClick={() => handleDelete(t.id)}
                       >
                         Delete
                       </button>
-                    </ProtectedRoute>
+                    </RequirePermission>
                   </td>
                 </tr>
               ))}
@@ -155,7 +155,6 @@ export default function DocumentTypeList() {
             </tbody>
           </table>
 
-          {/* Paginação simples (se quiser reaproveitar seu componente Pagination, pode trocar aqui) */}
           {data.total > data.pageSize && (
             <div
               style={{

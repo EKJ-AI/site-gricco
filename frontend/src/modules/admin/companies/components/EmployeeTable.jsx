@@ -1,15 +1,18 @@
-// src/modules/companies/components/EmployeeTable.jsx
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
-export default function EmployeeTable({ rows = [], onDelete, scope = 'company' }) {
+export default function EmployeeTable({
+  rows = [],
+  onDelete,
+  scope = 'company',
+}) {
   const { companyId, establishmentId } = useParams();
 
   const base =
     scope === 'company'
       ? `/companies/${companyId}/employees`
-      : `/establishments/${establishmentId}/employees`;
+      : `/companies/${companyId}/establishments/${establishmentId}/employees`;
 
   return (
     <table className="data-table" style={{ marginTop: 8 }}>
@@ -18,6 +21,7 @@ export default function EmployeeTable({ rows = [], onDelete, scope = 'company' }
           <th>CPF</th>
           <th>Name</th>
           <th>Job Title</th>
+          <th>Department</th>
           <th>Email</th>
           <th></th>
         </tr>
@@ -28,13 +32,21 @@ export default function EmployeeTable({ rows = [], onDelete, scope = 'company' }
             <td>{e.cpf}</td>
             <td>{e.name}</td>
             <td>{e.jobTitle || '-'}</td>
+            <td>{e.department?.name || '-'}</td>
             <td>{e.email || '-'}</td>
             <td style={{ textAlign: 'right' }}>
-              <Link style={{ marginRight: 8 }} to={`${base}/${e.id}/edit`}>
-                Edit
-              </Link>
+              {/* Editar colaborador → employee.update */}
+              <RequirePermission permissions={['employee.update']}>
+                <Link
+                  style={{ marginRight: 8 }}
+                  to={`${base}/${e.id}/edit`}
+                >
+                  Edit
+                </Link>
+              </RequirePermission>
 
-              <ProtectedRoute inline permissions={['employee.delete']}>
+              {/* Deletar colaborador → employee.delete */}
+              <RequirePermission permissions={['employee.delete']}>
                 <button
                   type="button"
                   className="danger"
@@ -42,13 +54,13 @@ export default function EmployeeTable({ rows = [], onDelete, scope = 'company' }
                 >
                   Delete
                 </button>
-              </ProtectedRoute>
+              </RequirePermission>
             </td>
           </tr>
         ))}
         {!rows.length && (
           <tr>
-            <td colSpan={5} style={{ textAlign: 'center' }}>
+            <td colSpan={6} style={{ textAlign: 'center' }}>
               No employees
             </td>
           </tr>

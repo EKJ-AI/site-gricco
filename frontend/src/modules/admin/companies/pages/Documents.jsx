@@ -1,8 +1,7 @@
-// src/modules/admin/companies/pages/Documents.jsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { useParams, Link } from 'react-router-dom';
-import ProtectedRoute from '../../../../shared/components/ProtectedRoute';
+import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import {
   listDocuments,
   deleteDocument,
@@ -136,7 +135,14 @@ export default function Documents() {
         });
       } catch (e) {
         console.error(e);
-        setErr('Failed to load documents.');
+        const status = e?.response?.status;
+        if (status === 403) {
+          setErr(
+            'Você não tem permissão para visualizar os documentos deste estabelecimento.'
+          );
+        } else {
+          setErr('Failed to load documents.');
+        }
         setData((old) => ({ ...old, items: [], total: 0, page }));
       } finally {
         setLoading(false);
@@ -348,14 +354,14 @@ export default function Documents() {
         />
         <button onClick={() => fetcher(1)}>Search</button>
 
-        <ProtectedRoute inline permissions={['document.create']}>
+        <RequirePermission permission="document.create">
           <Link
             to={`/companies/${companyId}/establishments/${establishmentId}/documents/new`}
             className="primary"
           >
             New Document
           </Link>
-        </ProtectedRoute>
+        </RequirePermission>
       </div>
 
       {err && <div className="error-message">{err}</div>}

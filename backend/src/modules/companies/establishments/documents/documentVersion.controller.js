@@ -10,11 +10,55 @@ import {
   sha256OfBuffer,
   buildStoragePath,
 } from '../../../uploads/upload.utils.js';
+import {
+  resolveEstablishmentAccess,
+  resolveDocumentAccess,
+  canReadDocs,
+  canWriteDocs,
+} from './document.access.js';
+import logger from '../../../../utils/logger.js';
+
+/**
+ * Helper centralizado para registrar logs de acesso a documentos
+ * (VIEW / DOWNLOAD / UPLOAD).
+ */
+async function registerDocumentAccess(req, { documentId, documentVersionId = null, action }) {
+  try {
+    await prisma.documentAccessLog.create({
+      data: {
+        documentId,
+        documentVersionId,
+        userId: req.user?.id ?? null,
+        action,
+        ip: req.ip || null,
+        userAgent: req.get('user-agent') || null,
+      },
+    });
+  } catch (err) {
+    logger.warn(
+      `[DOC_ACCESS_LOG] Failed to register ${action} for doc=${documentId} version=${documentVersionId}: ${err.message}`,
+      err,
+    );
+  }
+}
 
 export async function list(req, res) {
   try {
     const { documentId } = req.params;
     const { skip, take, page, pageSize } = parsePagination(req);
+
+    // 🔹 Autorização de leitura já foi garantida por ensureDocumentAccess({ mode: 'read' })
+    // Aqui apenas garantimos que o documento existe.
+    const doc = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { id: true },
+    });
+
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found' });
+    }
 
     const where = { documentId, deletedAt: null };
 
@@ -67,6 +111,10 @@ export async function uploadNew(req, res) {
 
     const establishmentIdFromDoc =
       doc.establishmentId || doc.establishment?.id || null;
+
+    // ❌ ANTES: refazíamos a checagem de permissão aqui com resolveEstablishmentAccess + canWriteDocs
+    // ✅ AGORA: confiamos no middleware ensureDocumentAccess({ mode: 'write' }) que já rodou antes.
+    // Apenas validamos se o doc pertence ao estabelecimento da rota.
 
     if (
       establishmentIdParam &&
@@ -153,6 +201,13 @@ export async function uploadNew(req, res) {
       details: JSON.stringify({ documentId, versionNumber }),
     });
 
+    // 🔹 LOG: UPLOAD
+    await registerDocumentAccess(req, {
+      documentId,
+      documentVersionId: updated.id,
+      action: 'UPLOAD',
+    });
+
     res.status(201).json({ success: true, data: updated });
   } catch (err) {
     try {
@@ -181,6 +236,7 @@ export async function getById(req, res) {
       where: { id },
       include: {
         uploadedBy: { select: { id: true, name: true, email: true } },
+        document: { select: { id: true, establishmentId: true } },
       },
     });
     if (!ver) {
@@ -188,6 +244,17 @@ export async function getById(req, res) {
         .status(404)
         .json({ success: false, message: 'Version not found' });
     }
+
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      ver.document.establishmentId,
+    );
+    if (!canReadDocs(access)) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Forbidden (no access to this document)' });
+    }
+
     res.json({ success: true, data: ver });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
@@ -220,7 +287,15 @@ export async function archive(req, res) {
         .json({ success: false, message: 'Version not found' });
     }
 
-    const now = new Date();
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      ver.document.establishmentId,
+    );
+    if (!canWriteDocs(access)) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Forbidden (no write access to this document)' });
+    }
 
     const [updatedVersion, updatedDoc] = await prisma.$transaction(
       async (tx) => {
@@ -273,11 +348,24 @@ export async function activate(req, res) {
     const { id } = req.params;
     const ver = await prisma.documentVersion.findUnique({
       where: { id },
+      include: {
+        document: true,
+      },
     });
     if (!ver) {
       return res
         .status(404)
         .json({ success: false, message: 'Version not found' });
+    }
+
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      ver.document.establishmentId,
+    );
+    if (!canWriteDocs(access)) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Forbidden (no write access to this document)' });
     }
 
     const now = new Date();
@@ -344,6 +432,16 @@ export async function archiveFromDocument(req, res) {
       });
     }
 
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      ver.document.establishmentId,
+    );
+    if (!canWriteDocs(access)) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Forbidden (no write access to this document)' });
+    }
+
     const [updatedVersion, updatedDoc] = await prisma.$transaction(
       async (tx) => {
         const v = await tx.documentVersion.update({
@@ -393,6 +491,9 @@ export async function activateFromDocument(req, res) {
     const { documentId, versionId } = req.params;
     const ver = await prisma.documentVersion.findUnique({
       where: { id: versionId },
+      include: {
+        document: true,
+      },
     });
     if (!ver) {
       return res
@@ -404,6 +505,16 @@ export async function activateFromDocument(req, res) {
         success: false,
         message: 'Version does not belong to document',
       });
+    }
+
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      ver.document.establishmentId,
+    );
+    if (!canWriteDocs(access)) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Forbidden (no write access to this document)' });
     }
 
     const now = new Date();
@@ -448,6 +559,86 @@ export async function activateFromDocument(req, res) {
         .json({ success: false, ...mapped });
     }
     res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
+  }
+}
+
+/**
+ * Novo endpoint: acesso ao arquivo (VIEW / DOWNLOAD).
+ * GET /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/versions/:versionId/file?mode=view|download
+ */
+export async function accessFile(req, res) {
+  try {
+    const { companyId, establishmentId, documentId, versionId } = req.params;
+    const mode = req.query.mode === 'download' ? 'download' : 'view';
+
+    const ver = await prisma.documentVersion.findUnique({
+      where: { id: versionId },
+      include: {
+        document: true,
+      },
+    });
+
+    if (!ver) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Version not found' });
+    }
+
+    if (ver.documentId !== documentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Version does not belong to document',
+      });
+    }
+
+    if (String(ver.document.establishmentId) !== String(establishmentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Document does not belong to this Establishment',
+      });
+    }
+
+    // 🔐 Usa a MESMA lógica de acesso que o resto (resolveDocumentAccess + canReadDocs)
+    const { doc, access } = await resolveDocumentAccess(req.user, documentId);
+
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found' });
+    }
+
+    if (!canReadDocs(access)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden (no access to this document)',
+      });
+    }
+
+    if (!ver.storagePath) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'File not available' });
+    }
+
+    // 🔹 LOG: VIEW ou DOWNLOAD
+    await registerDocumentAccess(req, {
+      documentId,
+      documentVersionId: ver.id,
+      action: mode === 'download' ? 'DOWNLOAD' : 'VIEW',
+    });
+
+    // redireciona para o arquivo físico
+    return res.redirect(ver.storagePath);
+  } catch (err) {
+    const mapped = prismaErrorToHttp(err);
+    if (mapped) {
+      return res
+        .status(mapped.status)
+        .json({ success: false, ...mapped });
+    }
+    return res
       .status(500)
       .json({ success: false, message: 'Internal error' });
   }

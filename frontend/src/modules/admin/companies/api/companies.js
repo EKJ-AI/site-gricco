@@ -1,3 +1,4 @@
+// src/modules/admin/companies/api/companies.js
 import api from '../../../../api/axios';
 
 export async function listCompanies({ page = 1, pageSize = 12, q = '' }, token) {
@@ -6,7 +7,7 @@ export async function listCompanies({ page = 1, pageSize = 12, q = '' }, token) 
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  console.log("listCompanies ", res);
+  console.log('listCompanies ', res);
 
   return res.data?.data;
 }
@@ -16,7 +17,7 @@ export async function getCompany(id, token) {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  console.log("getCompany: ", res);
+  console.log('getCompany: ', res);
 
   return res.data?.data;
 }

@@ -1,4 +1,3 @@
-import { parsePagination } from '../../infra/http/pagination.js';
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
 import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
@@ -10,11 +9,11 @@ export async function list(req, res) {
     const logs = await prisma.auditLog.findMany({
       include: {
         user: {
-          select: { id: true, email: true }
-        }
+          select: { id: true, email: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: 100
+      take: 100,
     });
 
     logger.info(`[AUDIT] Retornados ${logs.length} logs`);
@@ -22,16 +21,20 @@ export async function list(req, res) {
       success: true,
       data: {
         total: logs.length,
-        items: logs
-      }
+        items: logs,
+      },
     });
   } catch (error) {
     logger.error(`[AUDIT] Erro ao listar logs: ${error.message}`, error);
-      const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    const mapped = prismaErrorToHttp(error);
+    if (mapped) {
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
+    }
     res.status(500).json({
       success: false,
-      message: 'Erro ao buscar logs de auditoria.'
+      message: 'Erro ao buscar logs de auditoria.',
     });
   }
 }
@@ -44,32 +47,37 @@ export async function create(req, res) {
       logger.warn('[AUDIT] Criação falhou: campos obrigatórios ausentes');
       return res.status(400).json({
         success: false,
-        message: 'Ação e detalhes são obrigatórios.'
+        message: 'Ação e detalhes são obrigatórios.',
       });
     }
 
     const newLog = await prisma.auditLog.create({
       data: {
+        // ⚠️ aqui é responsabilidade de quem chama passar um valor válido do enum
         action,
         details,
         userId: req.user?.id || null,
         ip: req.ip || req.headers['x-forwarded-for'] || null,
-        userAgent: req.headers['user-agent'] || null
-      }
+        userAgent: req.headers['user-agent'] || null,
+      },
     });
 
     logger.info(`[AUDIT] Log criado: id ${newLog.id}, action ${newLog.action}`);
     res.status(201).json({
       success: true,
-      data: newLog
+      data: newLog,
     });
   } catch (error) {
     logger.error(`[AUDIT] Erro ao criar log: ${error.message}`, error);
-      const mapped = prismaErrorToHttp(err);
-    if (mapped) return res.status(mapped.status).json({ success: false, error: mapped.code, message: mapped.message });
+    const mapped = prismaErrorToHttp(error);
+    if (mapped) {
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
+    }
     res.status(500).json({
       success: false,
-      message: 'Erro ao registrar log de auditoria.'
+      message: 'Erro ao registrar log de auditoria.',
     });
   }
 }
