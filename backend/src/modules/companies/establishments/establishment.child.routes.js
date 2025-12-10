@@ -76,7 +76,9 @@ async function getPortalEmployeeForEstablishment(req) {
   });
 
   if (!emp) {
-    console.log('[PORTAL-ACCESS] Nenhum Employee encontrado para este user/empresa/estabelecimento');
+    console.log(
+      '[PORTAL-ACCESS] Nenhum Employee encontrado para este user/empresa/estabelecimento',
+    );
     return null;
   }
 
@@ -94,7 +96,7 @@ async function getPortalEmployeeForEstablishment(req) {
  *  - Company Admin ✅ na empresa que criou (checado em bindCompany)
  *  - Usuário com permissões de documento:
  *      - READ  → document.read OU document.view OU documentVersion.read OU document.download
- *      - WRITE → document.create/update/delete OU documentVersion.create/activate/archive
+ *      - WRITE → document.create/update/delete OU documentVersion.create/activate/archive/update
  *  - Colaborador de estabelecimento (Employee.portalUserId):
  *      - Sempre pode LEITURA de documentos do seu estabelecimento,
  *        mesmo que não tenha permissões de documento no perfil.
@@ -115,6 +117,7 @@ function ensureDocumentAccess({ mode = 'read' } = {}) {
     'documentVersion.create',
     'documentVersion.activate',
     'documentVersion.archive',
+    'documentVersion.update',
   ];
 
   return async (req, res, next) => {
@@ -155,12 +158,16 @@ function ensureDocumentAccess({ mode = 'read' } = {}) {
       });
 
       if (mode === 'read' && (hasDocRead || hasDocWrite)) {
-        console.log('[DOC-ACCESS] Liberado por permissões de documento (READ)');
+        console.log(
+          '[DOC-ACCESS] Liberado por permissões de documento (READ)',
+        );
         return next();
       }
 
       if (mode === 'write' && hasDocWrite) {
-        console.log('[DOC-ACCESS] Liberado por permissões de documento (WRITE)');
+        console.log(
+          '[DOC-ACCESS] Liberado por permissões de documento (WRITE)',
+        );
         return next();
       }
 
@@ -170,7 +177,9 @@ function ensureDocumentAccess({ mode = 'read' } = {}) {
       console.log('[DOC-ACCESS] Resultado portalEmployee:', portalEmp);
 
       if (portalEmp && mode === 'read') {
-        console.log('[DOC-ACCESS] Liberado como colaborador do estabelecimento.');
+        console.log(
+          '[DOC-ACCESS] Liberado como colaborador do estabelecimento.',
+        );
         return next();
       }
 
@@ -196,7 +205,8 @@ function ensureDocumentAccess({ mode = 'read' } = {}) {
       console.error('[ensureDocumentAccess] erro:', err);
       return res.status(500).json({
         success: false,
-        message: 'Erro interno na verificação de acesso a documentos.',
+        message:
+          'Erro interno na verificação de acesso a documentos.',
       });
     }
   };
@@ -347,7 +357,18 @@ router.put(
   estCtrl.update,
 );
 
-// DELETE: /api/companies/:companyId/establishments/:establishmentId
+// PATCH (ativar/desativar): /api/companies/:companyId/establishments/:establishmentId/active
+router.patch(
+  '/:establishmentId/active',
+  authenticateToken,
+  auditLog,
+  authorizePermissions('establishment.active'),
+  bindCompany,
+  bindEstablishment,
+  (req, res) => estCtrl.setActive(req, res),
+);
+
+// DELETE (soft delete): /api/companies/:companyId/establishments/:establishmentId
 router.delete(
   '/:establishmentId',
   authenticateToken,
@@ -537,6 +558,17 @@ router.post(
   (req, res) => verCtrl.uploadNew(req, res),
 );
 
+router.put(
+  '/:establishmentId/documents/:documentId/versions/:versionId',
+  authenticateToken,
+  auditLog,
+  bindCompany,
+  bindEstablishment,
+  bindDocument,
+  ensureDocumentAccess({ mode: 'write' }),
+  (req, res) => verCtrl.updateFromDocument(req, res),
+);
+
 // aliases (opcionais) de ativar/arquivar no escopo do estabelecimento
 router.post(
   '/:establishmentId/documents/:documentId/versions/:versionId/activate',
@@ -560,7 +592,7 @@ router.post(
   (req, res) => verCtrl.archiveFromDocument(req, res),
 );
 
-// ✅ NOVO: rota para VIEW / DOWNLOAD do arquivo
+// ✅ VIEW / DOWNLOAD do arquivo
 router.get(
   '/:establishmentId/documents/:documentId/versions/:versionId/file',
   authenticateToken,

@@ -1,4 +1,3 @@
-// src/modules/companies/api/departments.js
 import api from '../../../../api/axios';
 
 /**
@@ -9,11 +8,25 @@ import api from '../../../../api/axios';
  */
 export async function listDepartments(
   establishmentId,
-  { page = 1, pageSize = 20, q = '' },
-  token
+  { page = 1, pageSize = 20, q = '', status = 'all' } = {},
+  token,
 ) {
+  const isActive =
+    status === 'active' ? true : status === 'inactive' ? false : undefined;
+
+  const params = {
+    page,
+    pageSize,
+    q,
+    establishmentId,
+  };
+
+  if (isActive !== undefined) {
+    params.isActive = isActive;
+  }
+
   const res = await api.get('/api/departments', {
-    params: { page, pageSize, q, establishmentId },
+    params,
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -37,7 +50,7 @@ export async function createDepartment(establishmentId, payload, token) {
     },
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
   return res.data?.data;
 }
@@ -65,15 +78,23 @@ export async function deleteDepartment(id, token) {
 export async function listDepartmentsInEstablishment(
   companyId,
   establishmentId,
-  { page = 1, pageSize = 20, q = '' } = {},
-  token
+  { page = 1, pageSize = 20, q = '', status = 'all' } = {},
+  token,
 ) {
+  const isActive =
+    status === 'active' ? true : status === 'inactive' ? false : undefined;
+
+  const params = { page, pageSize, q };
+  if (isActive !== undefined) {
+    params.isActive = isActive;
+  }
+
   const res = await api.get(
     `/api/companies/${companyId}/establishments/${establishmentId}/departments`,
     {
-      params: { page, pageSize, q },
+      params,
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
 
   return res.data?.data;
@@ -83,13 +104,13 @@ export async function getDepartmentInEstablishment(
   companyId,
   establishmentId,
   departmentId,
-  token
+  token,
 ) {
   const res = await api.get(
     `/api/companies/${companyId}/establishments/${establishmentId}/departments/${departmentId}`,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
 
   return res.data?.data;
@@ -99,14 +120,14 @@ export async function createDepartmentInEstablishment(
   companyId,
   establishmentId,
   payload,
-  token
+  token,
 ) {
   const res = await api.post(
     `/api/companies/${companyId}/establishments/${establishmentId}/departments`,
     payload,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
 
   return res.data?.data;
@@ -117,14 +138,14 @@ export async function updateDepartmentInEstablishment(
   establishmentId,
   departmentId,
   payload,
-  token
+  token,
 ) {
   const res = await api.put(
     `/api/companies/${companyId}/establishments/${establishmentId}/departments/${departmentId}`,
     payload,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
 
   return res.data?.data;
@@ -134,13 +155,13 @@ export async function deleteDepartmentInEstablishment(
   companyId,
   establishmentId,
   departmentId,
-  token
+  token,
 ) {
   const res = await api.delete(
     `/api/companies/${companyId}/establishments/${establishmentId}/departments/${departmentId}`,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
 
   return res.data?.data;

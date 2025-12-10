@@ -1,14 +1,35 @@
-// src/modules/companies/components/EstablishmentCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function EstablishmentCard({ item, onDelete }) {
+  const isInactive = item.isActive === false;
+
   return (
-    <div className="card">
-      <div className="card-title">{item.nickname || item.cnpj}</div>
+    <div className="card" style={isInactive ? { opacity: 0.75 } : undefined}>
+      <div className="card-title">
+        {item.nickname || item.cnpj}
+        {isInactive && (
+          <span
+            style={{
+              marginLeft: 8,
+              padding: '2px 6px',
+              fontSize: 11,
+              borderRadius: 4,
+              backgroundColor: '#eee',
+              color: '#b00',
+              textTransform: 'uppercase',
+            }}
+          >
+            Inativo
+          </span>
+        )}
+      </div>
       <div className="card-meta">CNAE: {item.mainCnae || '-'}</div>
       <div className="card-meta">Risk: {item.riskLevel ?? '-'}</div>
+      <div className="card-meta">
+        Status: {isInactive ? 'Inativo' : 'Ativo'}
+      </div>
 
       <div
         style={{
@@ -18,8 +39,9 @@ export default function EstablishmentCard({ item, onDelete }) {
           flexWrap: 'wrap',
         }}
       >
+        {/* 👇 Agora abre direto o dashboard */}
         <Link
-          to={`/companies/${item.companyId}/establishments/${item.id}`}
+          to={`/companies/${item.companyId}/establishments/${item.id}/dashboard`}
           className="secondary"
         >
           Open
@@ -46,6 +68,14 @@ export default function EstablishmentCard({ item, onDelete }) {
           </RequirePermission>
         )}
       </div>
+      <RequirePermission permission="company.read">
+        <Link
+            to={`/companies`}
+            className="secondary"
+          >
+            Voltar
+          </Link>
+      </RequirePermission>
     </div>
   );
 }

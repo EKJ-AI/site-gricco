@@ -13,42 +13,57 @@ export default function DepartmentTable({ rows = [], onDelete }) {
           <th>Name</th>
           <th>Shift</th>
           <th>Workload</th>
+          <th>Status</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((d) => (
-          <tr key={d.id}>
-            <td>{d.name}</td>
-            <td>{d.shift || '-'}</td>
-            <td>{d.workload || '-'}</td>
-            <td style={{ textAlign: 'right' }}>
-              {/* Editar departamento → department.update */}
-              <RequirePermission permissions={['department.update']}>
-                <Link
-                  style={{ marginRight: 8 }}
-                  to={`/companies/${companyId}/establishments/${establishmentId}/departments/${d.id}/edit`}
-                >
-                  Edit
-                </Link>
-              </RequirePermission>
+        {rows.map((d) => {
+          const isInactive = d.isActive === false;
+          return (
+            <tr key={d.id}>
+              <td>{d.name}</td>
+              <td>{d.shift || '-'}</td>
+              <td>{d.workload || '-'}</td>
+              <td>
+                {isInactive ? (
+                  <span style={{ color: '#b00', fontWeight: 500 }}>
+                    Inativo
+                  </span>
+                ) : (
+                  <span style={{ color: '#0a6', fontWeight: 500 }}>
+                    Ativo
+                  </span>
+                )}
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                {/* Editar departamento → department.update */}
+                <RequirePermission permissions={['department.update']}>
+                  <Link
+                    style={{ marginRight: 8 }}
+                    to={`/companies/${companyId}/establishments/${establishmentId}/departments/${d.id}/edit`}
+                  >
+                    Edit
+                  </Link>
+                </RequirePermission>
 
-              {/* Deletar departamento → department.delete */}
-              <RequirePermission permissions={['department.delete']}>
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={() => onDelete?.(d.id)}
-                >
-                  Delete
-                </button>
-              </RequirePermission>
-            </td>
-          </tr>
-        ))}
+                {/* Deletar departamento → department.delete */}
+                <RequirePermission permissions={['department.delete']}>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => onDelete?.(d.id)}
+                  >
+                    Delete
+                  </button>
+                </RequirePermission>
+              </td>
+            </tr>
+          );
+        })}
         {!rows.length && (
           <tr>
-            <td colSpan={4} style={{ textAlign: 'center' }}>
+            <td colSpan={5} style={{ textAlign: 'center' }}>
               No departments
             </td>
           </tr>

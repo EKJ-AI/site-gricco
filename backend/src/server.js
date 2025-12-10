@@ -1,4 +1,3 @@
-// src/server.js
 import express from 'express';
 import i18next from 'i18next';
 import Backend from 'i18next-fs-backend';
@@ -35,6 +34,9 @@ import documentTypeRoutes from './modules/companies/establishments/documents/doc
 
 // Catálogos (CNAE, CBO, CEP, CNPJ)
 import catalogRoutes from './modules/companies/establishments/catalogs/catalog.routes.js';
+
+// 🔹 Logs de acesso a documentos (VIEW / DOWNLOAD / UPLOAD)
+import documentAccessRoutes from './modules/companies/establishments/documents/documentAccess.routes.js';
 
 import config from './config/index.js';
 import logger from './utils/logger.js';
@@ -102,7 +104,7 @@ if (process.env.NODE_ENV !== 'production') {
 } else {
   const allowedOrigins = process.env.FRONTEND_ORIGIN
     ? process.env.FRONTEND_ORIGIN.split(',').map((o) => o.trim())
-    : ['https://site.gricco.com.br'];
+    : ['https://gricco.com.br', 'https://www.gricco.com.br'];
 
   app.use(
     cors({
@@ -163,6 +165,9 @@ app.use('/api/documentTypes', documentTypeRoutes);
 
 // Catálogos (CNAE, CBO, CEP, CNPJ)
 app.use('/api/catalogs', catalogRoutes);
+
+// 🔹 Logs de acesso a documentos (VIEW/DOWNLOAD/UPLOAD + resumo por usuário)
+app.use('/api', documentAccessRoutes);
 
 // --------------- Swagger ---------------
 const swaggerDocument = JSON.parse(

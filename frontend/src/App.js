@@ -57,6 +57,9 @@ import DocumentVersionUpload from './modules/admin/companies/pages/DocumentVersi
 import DocumentTypeList from './modules/admin/companies/pages/DocumentTypeList.jsx';
 import DocumentTypeForm from './modules/admin/companies/pages/DocumentTypeForm.jsx';
 
+// 👇 IMPORT NOVO DO DASHBOARD DO ESTABELECIMENTO
+import EstablishmentDashboard from './modules/admin/companies/pages/EstablishmentDashboard.jsx';
+
 // --- Layouts
 import PublicLayout from './shared/components/layouts/PublicLayout.jsx';
 import PrivateLayout from './modules/admin/components/layouts/PrivateLayout.jsx';
@@ -299,6 +302,26 @@ function App() {
                       </ProtectedRoute>
                     }
                   >
+                    {/* 👇 DASHBOARD COMO TELA PADRÃO (INDEX) */}
+                    <Route
+                      index
+                      element={
+                        <ProtectedRoute permissions={['establishment.read']}>
+                          <EstablishmentDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* 👇 ROTA EXPLÍCITA /dashboard */}
+                    <Route
+                      path="dashboard"
+                      element={
+                        <ProtectedRoute permissions={['establishment.read']}>
+                          <EstablishmentDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+
                     {/* Lista de documentos do estabelecimento */}
                     <Route
                       path="documents"

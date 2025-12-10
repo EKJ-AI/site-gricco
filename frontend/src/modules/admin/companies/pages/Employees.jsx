@@ -1,4 +1,3 @@
-// src/modules/companies/pages/Employees.jsx
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   listEmployeesByCompany,
@@ -10,9 +9,11 @@ import {
 import EmployeeTable from '../components/EmployeeTable.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
-//import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import { Link, useParams, useLocation } from 'react-router-dom';
+
+import AutocompleteSelect from '../components/AutocompleteSelect.jsx';
+import { listDepartmentsInEstablishment } from '../api/departments.js';
 
 export default function Employees() {
   const { accessToken } = useAuth();
@@ -24,6 +25,8 @@ export default function Employees() {
     : 'company';
 
   const [q, setQ] = useState('');
+  // 'all' | 'active' | 'inactive'
+  const [statusFilter, setStatusFilter] = useState('all');
   const [data, setData] = useState({
     items: [],
     total: 0,
@@ -33,6 +36,36 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+
+  // --------- Autocomplete de departamentos (somente escopo estabelecimento) ---------
+  const fetchDepartmentOptions = useCallback(
+    async (query) => {
+      if (
+        !accessToken ||
+        scope !== 'establishment' ||
+        !companyId ||
+        !establishmentId
+      ) {
+        return { items: [], total: 0 };
+      }
+
+      const res = await listDepartmentsInEstablishment(
+        companyId,
+        establishmentId,
+        { page: 1, pageSize: 50, q: query || '' },
+        accessToken,
+      );
+
+      const items = res?.items || [];
+      return {
+        items,
+        total: res?.total ?? items.length ?? 0,
+      };
+    },
+    [accessToken, scope, companyId, establishmentId],
+  );
+
   const fetcher = useCallback(
     async (page = 1) => {
       setLoading(true);
@@ -40,11 +73,14 @@ export default function Employees() {
 
       try {
         let res;
+        const departmentId =
+          scope === 'establishment' ? selectedDepartment?.id : undefined;
+
         if (scope === 'company') {
           res = await listEmployeesByCompany(
             companyId,
-            { page, pageSize: 20, q },
-            accessToken
+            { page, pageSize: 20, q, status: statusFilter },
+            accessToken,
           );
         } else {
           // escopo estabelecimento: tenta usar rota aninhada, senão cai na legacy
@@ -52,14 +88,14 @@ export default function Employees() {
             res = await listEmployeesInEstablishment(
               companyId,
               establishmentId,
-              { page, pageSize: 20, q },
-              accessToken
+              { page, pageSize: 20, q, departmentId, status: statusFilter },
+              accessToken,
             );
           } else {
             res = await listEmployeesByEstablishment(
               establishmentId,
-              { page, pageSize: 20, q },
-              accessToken
+              { page, pageSize: 20, q, departmentId, status: statusFilter },
+              accessToken,
             );
           }
         }
@@ -70,16 +106,25 @@ export default function Employees() {
             total: 0,
             page,
             pageSize: 20,
-          }
+          },
         );
       } catch (e) {
+        console.error('[Employees] list error', e);
         setErr('Failed to load employees.');
         setData((old) => ({ ...old, items: [], total: 0, page }));
       } finally {
         setLoading(false);
       }
     },
-    [scope, companyId, establishmentId, q, accessToken]
+    [
+      scope,
+      companyId,
+      establishmentId,
+      q,
+      accessToken,
+      selectedDepartment,
+      statusFilter, // refaz quando trocar ativos/todos/inativos
+    ],
   );
 
   useEffect(() => {
@@ -94,13 +139,14 @@ export default function Employees() {
           companyId,
           establishmentId,
           id,
-          accessToken
+          accessToken,
         );
       } else {
         await deleteEmployee(id, accessToken);
       }
       fetcher(data.page);
-    } catch {
+    } catch (e) {
+      console.error('[Employees] delete error', e);
       setErr('Failed to delete employee.');
     }
   };
@@ -129,6 +175,33 @@ export default function Employees() {
           onChange={(e) => setQ(e.target.value)}
         />
         <button onClick={() => fetcher(1)}>Search</button>
+
+        {/* Filtro por status */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All (active + inactive)</option>
+          <option value="active">Only active</option>
+          <option value="inactive">Only inactive</option>
+        </select>
+
+        {/* Filtro por departamento no escopo de estabelecimento */}
+        {scope === 'establishment' && (
+          <div style={{ minWidth: 260 }}>
+            <AutocompleteSelect
+              label="Filter by department"
+              value={selectedDepartment}
+              onChange={(item) => setSelectedDepartment(item || null)}
+              fetcher={fetchDepartmentOptions}
+              getKey={(it) => it.id}
+              getLabel={(it) => it.name}
+              placeholder="All departments"
+              minChars={0}
+              disabled={!accessToken}
+            />
+          </div>
+        )}
 
         <RequirePermission permissions={['employee.create']}>
           <Link to={newUrl} className="primary">

@@ -16,7 +16,7 @@ const resolvedBaseURL = fromEnv || (isProd ? '' : fallbackDevBaseURL);
 // Logs úteis só em dev
 if (!isProd) {
   // eslint-disable-next-line no-console
-  console.log('NODE_ENV:', process.env.NODE_ENV, 'API baseURL:', resolvedBaseURL);
+  //console.log('NODE_ENV:', process.env.NODE_ENV, 'API baseURL:', resolvedBaseURL);
 }
 
 // Falha cedo se esquecer a env em produção

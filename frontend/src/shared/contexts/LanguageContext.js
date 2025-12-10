@@ -12,12 +12,12 @@ export function LanguageProvider({ children }) {
       const saved = localStorage.getItem('imax-language');
       if (saved) {
         setLanguage(saved);
-        console.log(`[iMAX-Language] ✅ Carregado do localStorage: ${saved}`);
+        //console.log(`[iMAX-Language] ✅ Carregado do localStorage: ${saved}`);
       } else {
-        console.log('[iMAX-Language] ⚠️ Nenhum idioma salvo, usando padrão "pt-BR"');
+        //console.log('[iMAX-Language] ⚠️ Nenhum idioma salvo, usando padrão "pt-BR"');
       }
     } catch (error) {
-      console.warn('[iMAX-Language] ⚠️ Erro ao carregar idioma do localStorage', error);
+      //console.warn('[iMAX-Language] ⚠️ Erro ao carregar idioma do localStorage', error);
     }
   }, []);
 
@@ -25,9 +25,9 @@ export function LanguageProvider({ children }) {
     try {
       setLanguage(lang);
       localStorage.setItem('imax-language', lang);
-      console.log(`[iMAX-Language] 🌐 Idioma alterado para: ${lang}`);
+      //console.log(`[iMAX-Language] 🌐 Idioma alterado para: ${lang}`);
     } catch (error) {
-      console.error('[iMAX-Language] ❌ Erro ao salvar idioma no localStorage', error);
+      //console.error('[iMAX-Language] ❌ Erro ao salvar idioma no localStorage', error);
     }
   };
 

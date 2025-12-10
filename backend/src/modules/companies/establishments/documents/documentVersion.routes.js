@@ -56,6 +56,18 @@ router.get(
 );
 
 /**
+ * PUT /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/versions/:versionId
+ * Atualiza metadados da versão (ex.: changeDescription)
+ */
+router.put(
+  '/:versionId',
+  authenticateToken,
+  auditLog,
+  authorizePermissions('documentVersion.update'),
+  ctrl.updateFromDocument,
+);
+
+/**
  * PUT /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/versions/:versionId/archive
  * Arquiva uma versão (se for a vigente, desativa o documento)
  */

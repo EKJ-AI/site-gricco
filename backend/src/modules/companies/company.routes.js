@@ -37,6 +37,16 @@ router.put(
   ctrl.update,
 );
 
+// Ativar / desativar empresa
+router.patch(
+  '/:id/active',
+  authenticateToken,
+  auditLog,
+  authorizePermissions('company.active'),
+  ctrl.setActive,
+);
+
+// Soft delete (marca isActive = false)
 router.delete(
   '/:id',
   authenticateToken,

@@ -1,4 +1,3 @@
-// src/modules/companies/components/Tabs.jsx
 import React from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
@@ -23,6 +22,16 @@ export default function Tabs() {
         marginBottom: 12,
       }}
     >
+      {/* 👇 DASHBOARD – antes de Documents */}
+      <RequirePermission permissions={['establishment.read']}>
+        <NavLink to={`/companies/${companyId}`}>
+            Voltar
+        </NavLink>
+        <NavLink to={`${base}/dashboard`}>
+          Dashboard
+        </NavLink>
+      </RequirePermission>
+
       {/* Documentos → exige document.read */}
       <RequirePermission permissions={['document.read']}>
         <NavLink to={`${base}/documents`}>

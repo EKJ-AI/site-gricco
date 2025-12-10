@@ -11,12 +11,12 @@ export default function RequirePermission({
   const required = permissions ?? permission;
   const hasPermission = usePermission(required);
 
-  console.log(
-    '[RequirePermission] required =',
-    required,
-    '-> acesso =',
-    hasPermission,
-  );
+  // console.log(
+  //   '[RequirePermission] required =',
+  //   required,
+  //   '-> acesso =',
+  //   hasPermission,
+  // );
 
   if (!hasPermission) {
     return null;

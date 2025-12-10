@@ -1,10 +1,9 @@
-// src/modules/admin/companies/api/establishments.js
 import api from '../../../../api/axios';
 
 // lista estabelecimentos de uma company
 export async function listEstablishments(
   companyId,
-  { page = 1, pageSize = 12, q = '' },
+  { page = 1, pageSize = 12, q = '', status = 'all' } = {},
   token,
 ) {
   if (!companyId) {
@@ -12,11 +11,10 @@ export async function listEstablishments(
   }
 
   const res = await api.get(`/api/companies/${companyId}/establishments`, {
-    params: { page, pageSize, q },
+    params: { page, pageSize, q, status },
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  // backend responde { success, data: { total, page, pageSize, items } }
   return res.data?.data || res.data;
 }
 
@@ -33,11 +31,9 @@ export async function getEstablishment(companyId, establishmentId, token) {
     },
   );
 
-  // backend responde { success, data: item }
   return res.data?.data || res.data;
 }
 
-// cria estabelecimento dentro da company
 export async function createEstablishment(companyId, payload, token) {
   if (!companyId) {
     throw new Error('companyId is required to create establishment');
@@ -51,11 +47,9 @@ export async function createEstablishment(companyId, payload, token) {
     },
   );
 
-  // backend responde { success, data: created }
   return res.data?.data || res.data;
 }
 
-// atualiza estabelecimento dentro da company
 export async function updateEstablishment(
   companyId,
   establishmentId,
@@ -74,11 +68,9 @@ export async function updateEstablishment(
     },
   );
 
-  // backend responde { success, data: updated }
   return res.data?.data || res.data;
 }
 
-// remove estabelecimento
 export async function deleteEstablishment(companyId, establishmentId, token) {
   if (!companyId || !establishmentId) {
     throw new Error('companyId and establishmentId are required to delete establishment');
@@ -91,6 +83,5 @@ export async function deleteEstablishment(companyId, establishmentId, token) {
     },
   );
 
-  // backend responde { success, message }
   return res.data?.data || res.data;
 }

@@ -35,17 +35,14 @@ export default function UsersEditPage() {
         setUser(u);
         setProfiles(pf);
 
-        // Inicializa o selectedProfile a partir do que vier no usuário,
-        // mas a lista "pf" será a fonte da verdade (shape com permissions: [{id,name}])
         if (u?.profileId) {
           const prof = pf.find(
-            (p) => String(p.id) === String(u.profileId)
+            (p) => String(p.id) === String(u.profileId),
           );
           setSelectedProfile(prof || null);
         } else if (u?.profile) {
-          // fallback: se API do usuário já trouxe o profile, tenta casar com a lista
           const prof = pf.find(
-            (p) => String(p.id) === String(u.profile?.id)
+            (p) => String(p.id) === String(u.profile?.id),
           );
           setSelectedProfile(prof || u.profile || null);
         }
@@ -58,11 +55,10 @@ export default function UsersEditPage() {
     loadData();
   }, [id, accessToken]);
 
-  // Mantém selectedProfile sincronizado quando o profileId do usuário mudar
   useEffect(() => {
     if (user?.profileId && profiles.length) {
       const prof = profiles.find(
-        (p) => String(p.id) === String(user.profileId)
+        (p) => String(p.id) === String(user.profileId),
       );
       setSelectedProfile(prof || null);
     }
@@ -74,8 +70,8 @@ export default function UsersEditPage() {
       const payload = {
         name: user.name,
         email: user.email,
-        // Se sua API espera number, faça Number(user.profileId)
         profileId: user.profileId,
+        isActive: user.isActive, // 👈 envia status
       };
       if (password) payload.password = password;
 
@@ -123,7 +119,10 @@ export default function UsersEditPage() {
         <select
           value={user?.profileId ? String(user.profileId) : ''}
           onChange={(e) =>
-            setUser({ ...user, profileId: e.target.value /* ou Number(e.target.value) */ })
+            setUser({
+              ...user,
+              profileId: e.target.value,
+            })
           }
           required
         >
@@ -134,6 +133,17 @@ export default function UsersEditPage() {
             </option>
           ))}
         </select>
+
+        <label style={{ marginTop: 8 }}>
+          <input
+            type="checkbox"
+            checked={!!user.isActive}
+            onChange={(e) =>
+              setUser({ ...user, isActive: e.target.checked })
+            }
+          />{' '}
+          Usuário ativo
+        </label>
 
         <button type="submit">Salvar</button>
       </form>

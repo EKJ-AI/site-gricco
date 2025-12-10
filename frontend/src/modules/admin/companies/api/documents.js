@@ -1,4 +1,3 @@
-// src/modules/admin/companies/api/documents.js
 import api from '../../../../api/axios';
 
 // ----------------- DOCUMENTS (CRUD + list) -----------------
@@ -155,6 +154,26 @@ export async function activateVersion(
   return res.data?.data;
 }
 
+export async function updateVersionDescription(
+  companyId,
+  establishmentId,
+  documentId,
+  versionId,
+  payload,
+  token
+) {
+  const res = await api.put(
+    `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}`,
+    {
+      changeDescription: payload.changeDescription ?? null,
+    },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data?.data;
+}
+
 // ----------------- RELACIONAMENTOS ENTRE DOCUMENTOS -----------------
 
 export async function listRelations(
@@ -204,6 +223,49 @@ export async function deleteRelation(
 ) {
   const res = await api.delete(
     `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/relations/${relationId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data?.data;
+}
+
+// ----------------- ACCESS LOGS (Registros) -----------------
+
+/**
+ * Busca registros agregados de acesso ao documento (VIEW / DOWNLOAD / UPLOAD).
+ * Endpoint no backend:
+ * GET /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/access-log
+ */
+export async function fetchDocumentAccessLog(
+  companyId,
+  establishmentId,
+  documentId,
+  token
+) {
+  const res = await api.get(
+    `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/access-log`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data?.data;
+}
+
+/**
+ * Busca registros agregados de acesso a uma VERSÃO do documento.
+ * Endpoint no backend:
+ * GET /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/versions/:versionId/access-log
+ */
+export async function fetchDocumentVersionAccessLog(
+  companyId,
+  establishmentId,
+  documentId,
+  versionId,
+  token
+) {
+  const res = await api.get(
+    `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}/access-log`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }

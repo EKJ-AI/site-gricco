@@ -1,4 +1,3 @@
-// src/modules/catalogs/catalog.controller.js
 import prisma from '../../../../../prisma/client.js';
 import { parsePagination } from '../../../../infra/http/pagination.js';
 import { prismaErrorToHttp } from '../../../../infra/http/prismaError.js';
@@ -33,7 +32,13 @@ export async function searchCNAE(req, res) {
         skip,
         take,
         orderBy: [{ code: 'asc' }],
-        select: { id: true, code: true, title: true },
+        // 👇 agora trazendo também o risco oficial do catálogo (NR-1)
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          nrRisk: true, // <--- IMPORTANTE
+        },
       }),
     ]);
 
@@ -162,6 +167,6 @@ function normalizeCnae(code) {
   if (digits.length !== 7) return String(code);
   return `${digits.slice(0, 4)}-${digits.slice(4, 5)}/${digits.slice(
     5,
-    7
+    7,
   )}`;
 }

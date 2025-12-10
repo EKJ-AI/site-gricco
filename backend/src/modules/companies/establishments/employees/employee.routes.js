@@ -19,6 +19,12 @@ const scopeEstablishmentToBody = (req, _res, next) => {
   next();
 };
 
+// middleware auxiliar para setar isActive no body
+const setActiveFlag = (value) => (req, _res, next) => {
+  req.body = { ...(req.body || {}), isActive: value };
+  next();
+};
+
 // ========== LISTAGENS ==========
 /**
  * GET /api/employees/company/:companyId?page=&pageSize=&q=
@@ -27,7 +33,7 @@ router.get(
   '/company/:companyId',
   authenticateToken,
   authorizePermissions('employee.read'),
-  ctrl.listByCompany
+  ctrl.listByCompany,
 );
 
 /**
@@ -37,7 +43,7 @@ router.get(
   '/establishment/:establishmentId',
   authenticateToken,
   authorizePermissions('employee.read'),
-  ctrl.listByEstablishment
+  ctrl.listByEstablishment,
 );
 
 /**
@@ -48,7 +54,7 @@ router.get(
   '/by-establishment/:establishmentId',
   authenticateToken,
   authorizePermissions('employee.read'),
-  ctrl.listByEstablishment
+  ctrl.listByEstablishment,
 );
 
 // ========== CRIAÇÃO ==========
@@ -56,7 +62,7 @@ router.post(
   '/',
   authenticateToken,
   authorizePermissions('employee.create'),
-  ctrl.create
+  ctrl.create,
 );
 
 router.post(
@@ -64,7 +70,7 @@ router.post(
   authenticateToken,
   authorizePermissions('employee.create'),
   scopeCompanyToBody,
-  ctrl.create
+  ctrl.create,
 );
 
 router.post(
@@ -72,7 +78,7 @@ router.post(
   authenticateToken,
   authorizePermissions('employee.create'),
   scopeEstablishmentToBody,
-  ctrl.create
+  ctrl.create,
 );
 
 // ========== CRUD POR ID ==========
@@ -80,21 +86,40 @@ router.get(
   '/:id',
   authenticateToken,
   authorizePermissions('employee.read'),
-  ctrl.getById
+  ctrl.getById,
 );
 
 router.put(
   '/:id',
   authenticateToken,
   authorizePermissions('employee.update'),
-  ctrl.update
+  ctrl.update,
 );
 
+// soft delete (já implementado no controller.remove)
 router.delete(
   '/:id',
   authenticateToken,
   authorizePermissions('employee.delete'),
-  ctrl.remove
+  ctrl.remove,
+);
+
+// ativar colaborador (isActive = true)
+router.post(
+  '/:id/activate',
+  authenticateToken,
+  authorizePermissions('employee.update'),
+  setActiveFlag(true),
+  ctrl.update,
+);
+
+// desativar colaborador (isActive = false)
+router.post(
+  '/:id/deactivate',
+  authenticateToken,
+  authorizePermissions('employee.update'),
+  setActiveFlag(false),
+  ctrl.update,
 );
 
 export default router;

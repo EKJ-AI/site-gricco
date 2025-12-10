@@ -1,3 +1,4 @@
+// src/modules/employees/employee.controller.js
 import prisma from '../../../../../prisma/client.js';
 import bcrypt from 'bcrypt';
 import { parsePagination } from '../../../../infra/http/pagination.js';
@@ -8,7 +9,8 @@ const PORTAL_PROFILE_NAME =
   process.env.PORTAL_EMPLOYEE_PROFILE_NAME || 'Portal Employee';
 
 // ⚠️ Profile.id é String (uuid), então não convertemos para Number
-const PORTAL_PROFILE_ID_ENV = process.env.PORTAL_EMPLOYEE_PROFILE_ID || null;
+const PORTAL_PROFILE_ID_ENV =
+  process.env.PORTAL_EMPLOYEE_PROFILE_ID || null;
 
 /**
  * Resolve o profileId padrão para colaboradores de portal.
@@ -43,17 +45,27 @@ async function resolvePortalProfileId(tx) {
 /**
  * Garante o usuário de portal para o colaborador, de forma “inteligente”.
  *
+ * NOVA LÓGICA (senha opcional na edição):
+ *
  * Regras:
  *  - Se portalAccessEnabled = false → zera portalUserId (mantém portalDocumentRole como metadado).
  *  - Se portalAccessEnabled = true:
- *      - exige email e portalPassword
- *      - escolhe um Profile:
- *          - se portalProfileId vier do payload, usa ele
- *          - senão, resolve o profile padrão (Portal Employee)
- *      - procura User por email:
- *          - se existir → atualiza passwordHash (+ opcionalmente profileId)
- *          - se não existir → cria User com profileId escolhido
- *      - vincula Employee.portalUserId
+ *      - exige email do colaborador
+ *      - descobre/resolve o usuário:
+ *          - se employee.portalUserId existir → tenta esse usuário primeiro
+ *          - senão, procura User por email
+ *      - CASOS:
+ *          (A) Não existe nenhum usuário ainda:
+ *              - EXIGE portalPassword (mín. 6 chars)
+ *              - cria User com profile:
+ *                  - se portalProfileId vier do payload, usa ele
+ *                  - senão, resolve profile padrão (Portal Employee)
+ *          (B) Usuário já existe:
+ *              - portalPassword vazio/curto → mantém senha atual
+ *              - portalPassword com 6+ chars → reseta a senha
+ *              - se portalProfileId vier → atualiza profileId
+ *          - em ambos os casos garante isActive = true
+ *      - vincula Employee.portalUserId = user.id
  *
  * Retorna o Employee atualizado.
  */
@@ -64,15 +76,15 @@ async function ensurePortalUserForEmployee(
 ) {
   const employeeId = employee.id;
 
-  // 🔴 Desabilitando acesso ao portal
+  // 🔴 Desabilitando acesso ao portal → apenas desvincula o user do Employee.
+  // Não desativa o usuário aqui, porque ele pode ser usado em outro contexto
+  // (outro Employee, admin, etc.).
   if (!portalAccessEnabled) {
     if (employee.portalUserId) {
       return tx.employee.update({
         where: { id: employeeId },
         data: {
           portalUserId: null,
-          // portalDocumentRole continua no valor anterior / default (MEMBER),
-          // mas não é mais usado para autorização.
         },
       });
     }
@@ -86,70 +98,133 @@ async function ensurePortalUserForEmployee(
     );
   }
 
-  if (!portalPassword || String(portalPassword).trim().length < 6) {
-    throw new Error(
-      'A portal password with at least 6 characters is required to enable portal access.',
-    );
-  }
-
   const email = employee.email.trim().toLowerCase();
   const name = employee.name || email;
-  const passwordHash = await bcrypt.hash(String(portalPassword), 10);
+  const trimmedPassword = String(portalPassword || '').trim();
 
-  // Profile que será usado pelo usuário de portal
-  const effectiveProfileId =
-    portalProfileId || (await resolvePortalProfileId(tx));
+  // Tenta achar usuário já existente:
+  //  1) pelo portalUserId atual do Employee
+  //  2) se não tiver, pelo email
+  let user = null;
 
-  // Procura usuário existente pelo email
-  let user = await tx.user.findUnique({
-    where: { email },
-    select: { id: true, profileId: true },
-  });
+  if (employee.portalUserId) {
+    user = await tx.user.findUnique({
+      where: { id: employee.portalUserId },
+      select: { id: true },
+    });
+  }
 
   if (!user) {
-    // Cria novo usuário com o profile de colaborador de portal
-    user = await tx.user.create({
+    user = await tx.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+  }
+
+  // CASO A: não existe usuário ainda → criar (senha obrigatória)
+  if (!user) {
+    if (!trimmedPassword || trimmedPassword.length < 6) {
+      throw new Error(
+        'A portal password with at least 6 characters is required to enable portal access.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(trimmedPassword, 10);
+    const effectiveProfileId =
+      portalProfileId || (await resolvePortalProfileId(tx));
+
+    const createdUser = await tx.user.create({
       data: {
         name,
         email,
         passwordHash,
         profileId: effectiveProfileId,
+        isActive: true,
       },
-      select: { id: true, profileId: true },
+      select: { id: true },
     });
-  } else {
-    // Usuário já existe → atualiza a senha e, opcionalmente, o profile
-    await tx.user.update({
-      where: { id: user.id },
+
+    const updatedEmployee = await tx.employee.update({
+      where: { id: employeeId },
       data: {
-        passwordHash,
-        // Se o Admin escolheu um profile específico para este colaborador,
-        // podemos sincronizar o profileId com a escolha.
-        ...(portalProfileId ? { profileId: effectiveProfileId } : {}),
+        portalUserId: createdUser.id,
       },
     });
+
+    return updatedEmployee;
   }
 
-  // Atualiza o Employee para vincular ao usuário de portal
+  // CASO B: usuário já existe → opcionalmente trocamos senha e/ou profile
+  const userUpdateData = {
+    isActive: true,
+  };
+
+  // Se veio um profileId específico, atualiza o profile do usuário
+  if (portalProfileId) {
+    userUpdateData.profileId = portalProfileId;
+  }
+
+  // Se veio uma senha nova "forte" (>= 6 chars), reseta a senha
+  if (trimmedPassword && trimmedPassword.length >= 6) {
+    userUpdateData.passwordHash = await bcrypt.hash(trimmedPassword, 10);
+  }
+
+  await tx.user.update({
+    where: { id: user.id },
+    data: userUpdateData,
+  });
+
+  // Garante vínculo no Employee
   const updatedEmployee = await tx.employee.update({
     where: { id: employeeId },
     data: {
       portalUserId: user.id,
-      // portalDocumentRole continua existindo no schema, mas não manda mais no acesso.
     },
   });
 
   return updatedEmployee;
 }
 
+/**
+ * LISTAGEM POR COMPANY
+ */
 export async function listByCompany(req, res) {
   try {
     const companyId = req.params.companyId || req.query.companyId; // aceita ambos
-    const { q } = req.query;
+    const {
+      q,
+      departmentId,
+      status,
+      includeInactive,
+      isActive,
+    } = req.query;
     const { skip, take, page, pageSize } = parsePagination(req);
+
+    // --------- Filtro de status unificado ---------
+    let whereIsActive = {};
+
+    if (typeof status === 'string') {
+      const s = status.toLowerCase();
+      if (s === 'active') whereIsActive = { isActive: true };
+      else if (s === 'inactive') whereIsActive = { isActive: false };
+      else if (s === 'all') whereIsActive = {};
+    } else if (typeof isActive !== 'undefined') {
+      const v = String(isActive).toLowerCase();
+      if (v === 'true' || v === '1') whereIsActive = { isActive: true };
+      else if (v === 'false' || v === '0') whereIsActive = { isActive: false };
+    } else if (typeof includeInactive !== 'undefined') {
+      const inc = String(includeInactive).toLowerCase();
+      const showAll = inc === 'true' || inc === '1';
+      whereIsActive = showAll ? {} : { isActive: true };
+    } else {
+      // default → só ativos
+      whereIsActive = { isActive: true };
+    }
 
     const where = {
       companyId,
+      ...(departmentId ? { departmentId } : {}),
+      ...whereIsActive,
       ...(q
         ? {
             OR: [
@@ -188,15 +263,45 @@ export async function listByCompany(req, res) {
   }
 }
 
+/**
+ * LISTAGEM POR ESTABLISHMENT
+ */
 export async function listByEstablishment(req, res) {
   try {
     const establishmentId =
       req.params.establishmentId || req.query.establishmentId;
-    const { q } = req.query;
+    const {
+      q,
+      departmentId,
+      status,
+      includeInactive,
+      isActive,
+    } = req.query;
     const { skip, take, page, pageSize } = parsePagination(req);
+
+    let whereIsActive = {};
+
+    if (typeof status === 'string') {
+      const s = status.toLowerCase();
+      if (s === 'active') whereIsActive = { isActive: true };
+      else if (s === 'inactive') whereIsActive = { isActive: false };
+      else if (s === 'all') whereIsActive = {};
+    } else if (typeof isActive !== 'undefined') {
+      const v = String(isActive).toLowerCase();
+      if (v === 'true' || v === '1') whereIsActive = { isActive: true };
+      else if (v === 'false' || v === '0') whereIsActive = { isActive: false };
+    } else if (typeof includeInactive !== 'undefined') {
+      const inc = String(includeInactive).toLowerCase();
+      const showAll = inc === 'true' || inc === '1';
+      whereIsActive = showAll ? {} : { isActive: true };
+    } else {
+      whereIsActive = { isActive: true };
+    }
 
     const where = {
       establishmentId,
+      ...(departmentId ? { departmentId } : {}),
+      ...whereIsActive,
       ...(q
         ? {
             OR: [
@@ -294,6 +399,16 @@ export async function create(req, res) {
       phone,
       nationality,
       language,
+      // endereço do colaborador
+      street,
+      number,
+      complement,
+      district,
+      city,
+      state,
+      zipCode,
+      ibgeCityCode,
+      // portal
       portalAccessEnabled,
       portalProfileId,
       portalPassword,
@@ -327,7 +442,8 @@ export async function create(req, res) {
       if (!dep || dep.establishmentId !== establishmentId) {
         return res.status(400).json({
           success: false,
-          message: 'Department não pertence ao Establishment informado',
+          message:
+            'Department não pertence ao Establishment informado',
         });
       }
     }
@@ -352,10 +468,20 @@ export async function create(req, res) {
           phone,
           nationality: nationality ?? null,
           preferredLanguage: language ?? null,
+          // endereço
+          street: street ?? null,
+          number: number ?? null,
+          complement: complement ?? null,
+          district: district ?? null,
+          city: city ?? null,
+          state: state ?? null,
+          zipCode: zipCode ?? null,
+          ibgeCityCode: ibgeCityCode ?? null,
+          isActive: true,
         },
       });
 
-      // “Mega inteligente” → cria/atualiza usuário de portal se habilitado
+      // Cria/atualiza usuário de portal se habilitado
       const finalEmployee = await ensurePortalUserForEmployee(tx, created, {
         portalAccessEnabled: !!portalAccessEnabled,
         portalProfileId: portalProfileId || null,
@@ -385,7 +511,9 @@ export async function create(req, res) {
 
     if (
       err instanceof Error &&
-      err.message?.startsWith('Email is required to enable portal access')
+      err.message?.startsWith(
+        'Email is required to enable portal access',
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -438,9 +566,21 @@ export async function update(req, res) {
       phone,
       nationality,
       language,
+      // endereço
+      street,
+      number,
+      complement,
+      district,
+      city,
+      state,
+      zipCode,
+      ibgeCityCode,
+      // portal
       portalAccessEnabled,
       portalProfileId,
       portalPassword,
+      // ativo/inativo
+      isActive,
     } = req.body || {};
 
     // Carrega o estado atual do empregado (para validações e portal)
@@ -454,6 +594,7 @@ export async function update(req, res) {
         name: true,
         portalUserId: true,
         portalDocumentRole: true,
+        isActive: true,
       },
     });
 
@@ -487,7 +628,8 @@ export async function update(req, res) {
       if (!dep || dep.establishmentId !== estId) {
         return res.status(400).json({
           success: false,
-          message: 'Department não pertence ao Establishment informado',
+          message:
+            'Department não pertence ao Establishment informado',
         });
       }
     }
@@ -505,7 +647,9 @@ export async function update(req, res) {
           sex: sex ?? undefined,
           registration: registration ?? undefined,
           hiredAt: hiredAt ? new Date(hiredAt) : undefined,
-          dismissedAt: dismissedAt ? new Date(dismissedAt) : undefined,
+          dismissedAt: dismissedAt
+            ? new Date(dismissedAt)
+            : undefined,
           bondType: bondType ?? undefined,
           cboId: cboId ?? undefined,
           jobTitle: jobTitle ?? undefined,
@@ -513,6 +657,17 @@ export async function update(req, res) {
           phone: phone ?? undefined,
           nationality: nationality ?? undefined,
           preferredLanguage: language ?? undefined,
+          // endereço
+          street: street ?? undefined,
+          number: number ?? undefined,
+          complement: complement ?? undefined,
+          district: district ?? undefined,
+          city: city ?? undefined,
+          state: state ?? undefined,
+          zipCode: zipCode ?? undefined,
+          ibgeCityCode: ibgeCityCode ?? undefined,
+          isActive:
+            typeof isActive === 'boolean' ? isActive : undefined,
           // portalUserId será tratado em ensurePortalUserForEmployee
         },
       });
@@ -545,7 +700,9 @@ export async function update(req, res) {
 
     if (
       err instanceof Error &&
-      err.message?.startsWith('Email is required to enable portal access')
+      err.message?.startsWith(
+        'Email is required to enable portal access',
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -579,7 +736,51 @@ export async function update(req, res) {
 export async function remove(req, res) {
   try {
     const { id } = req.params;
-    await prisma.employee.delete({ where: { id } });
+
+    // 1) Carrega o colaborador para saber se há portalUserId
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        portalUserId: true,
+        isActive: true,
+      },
+    });
+
+    if (!employee) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Employee not found' });
+    }
+
+    // 2) Transação: inativar o Employee (isActive = false) e, se for o último vínculo ativo,
+    // desativar o usuário de portal (isActive = false)
+    await prisma.$transaction(async (tx) => {
+      // soft delete / inativação
+      await tx.employee.update({
+        where: { id: employee.id },
+        data: { isActive: false },
+      });
+
+      if (employee.portalUserId) {
+        // verifica se ainda existe algum outro Employee ATIVO usando esse mesmo portalUserId
+        const remaining = await tx.employee.count({
+          where: {
+            portalUserId: employee.portalUserId,
+            isActive: true,
+          },
+        });
+
+        // se não houver mais nenhum, desativa o User
+        if (remaining === 0) {
+          await tx.user.update({
+            where: { id: employee.portalUserId },
+            data: { isActive: false },
+          });
+        }
+      }
+    });
+
     await registerAudit({
       userId: req.user?.id,
       action: 'DELETE',
@@ -587,7 +788,11 @@ export async function remove(req, res) {
       entityId: id,
       details: '',
     });
-    return res.json({ success: true, message: 'Employee removed' });
+
+    return res.json({
+      success: true,
+      message: 'Employee removed (soft delete)',
+    });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
     if (mapped)

@@ -1,4 +1,3 @@
-// src/modules/companies/pages/Departments.jsx
 import React, { useEffect, useState } from 'react';
 import {
   listDepartmentsInEstablishment,
@@ -7,7 +6,6 @@ import {
 import DepartmentTable from '../components/DepartmentTable.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
-//import ProtectedRoute from '../../../../shared/components/ProtectedRoute.js';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import { Link, useParams } from 'react-router-dom';
 
@@ -16,6 +14,7 @@ export default function Departments() {
   const { companyId, establishmentId } = useParams();
 
   const [q, setQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active'); // all | active | inactive
   const [data, setData] = useState({
     items: [],
     total: 0,
@@ -28,8 +27,8 @@ export default function Departments() {
       const res = await listDepartmentsInEstablishment(
         companyId,
         establishmentId,
-        { page, pageSize: 20, q },
-        accessToken
+        { page, pageSize: 20, q, status: statusFilter },
+        accessToken,
       );
       setData(res || { items: [], total: 0, page, pageSize: 20 });
     } catch {
@@ -40,7 +39,7 @@ export default function Departments() {
   useEffect(() => {
     fetcher(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, establishmentId, accessToken]);
+  }, [companyId, establishmentId, accessToken, statusFilter]);
 
   const onDelete = async (id) => {
     if (!window.confirm('Confirm delete?')) return;
@@ -48,7 +47,7 @@ export default function Departments() {
       companyId,
       establishmentId,
       id,
-      accessToken
+      accessToken,
     );
     fetcher(data.page);
   };
@@ -70,6 +69,16 @@ export default function Departments() {
           onChange={(e) => setQ(e.target.value)}
         />
         <button onClick={() => fetcher(1)}>Search</button>
+
+        {/* Filtro de status */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All</option>
+          <option value="active">Only active</option>
+          <option value="inactive">Only inactive</option>
+        </select>
 
         <RequirePermission permissions={['department.create']}>
           <Link

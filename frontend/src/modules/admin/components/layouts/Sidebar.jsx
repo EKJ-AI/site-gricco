@@ -47,25 +47,7 @@ const Sidebar = () => {
 
       {/* MENU PRINCIPAL */}
       <nav className="sidebar-nav">
-        {/* =========================
-            ATALHO PORTAL / SUB-ADMIN
-           ========================= */}
-        {hasPortalEstablishment && (
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Portal</div>
-
-            <RequirePermission permission="document.read">
-              <NavLink
-                to={`/companies/${portalContext.companyId}/establishments/${portalContext.establishmentId}/documents`}
-                className={linkClass}
-              >
-                <span className="sidebar-link-icon file-icon" />
-                <span>Documentos do Estabelecimento</span>
-              </NavLink>
-            </RequirePermission>
-          </div>
-        )}
-
+        <div className="sidebar-section-title">Portal</div>
         {/* =========================
             Navegação principal
            ========================= */}
@@ -77,6 +59,23 @@ const Sidebar = () => {
               <span>Painel</span>
             </NavLink>
           </RequirePermission>
+
+        {/* =========================
+            ATALHO PORTAL / SUB-ADMIN
+           ========================= */}
+        {hasPortalEstablishment && (
+          // <div className="sidebar-section">
+            <RequirePermission permission="document.read">
+              <NavLink
+                to={`/companies/${portalContext.companyId}/establishments/${portalContext.establishmentId}/dashboard`}
+                className={linkClass}
+              >
+                <span className="sidebar-link-icon file-icon" />
+                <span>Documentos do Estabelecimento</span>
+              </NavLink>
+            </RequirePermission>
+          // </div>
+        )}          
 
           {/* Empresas (inclui quem só tem perm de Establishment) */}
           <RequirePermission
@@ -126,10 +125,9 @@ const Sidebar = () => {
             Configurações
            ========================= */}
         <div className="sidebar-section">
-          <div className="sidebar-section-title">Configurações</div>
-
           {/* Usuários */}
           <RequirePermission permission="user.read">
+            <div className="sidebar-section-title">Configurações</div>
             <NavLink to="/users" className={linkClass}>
               <span className="sidebar-link-icon user-icon" />
               <span>Usuários</span>
@@ -173,9 +171,8 @@ const Sidebar = () => {
             Traduções
            ========================= */}
         <div className="sidebar-section">
-          <div className="sidebar-section-title">Traduções</div>
-
           <RequirePermission permission="translation.read">
+            <div className="sidebar-section-title">Traduções</div>
             <NavLink
               to="/admin/translations/translates"
               className={linkClass}

@@ -5,11 +5,44 @@ export default function Pagination({ page, pageSize, total, onChange }) {
   const canPrev = page > 1;
   const canNext = page < pages;
 
+  const handlePrev = (e) => {
+    e.preventDefault();
+    if (!canPrev) return;
+    onChange(page - 1);
+  };
+
+  const handleNext = (e) => {
+    e.preventDefault();
+    if (!canNext) return;
+    onChange(page + 1);
+  };
+
   return (
-    <div style={{ display:'flex', gap:8, alignItems:'center', marginTop:16 }}>
-      <button disabled={!canPrev} onClick={() => onChange(page - 1)}>Prev</button>
-      <span>Page {page} / {pages}</span>
-      <button disabled={!canNext} onClick={() => onChange(page + 1)}>Next</button>
+    <div
+      style={{
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        marginTop: 16,
+      }}
+    >
+      <button
+        type="button"          // 👈 evita submit de formulário
+        disabled={!canPrev}
+        onClick={handlePrev}
+      >
+        Prev
+      </button>
+      <span>
+        Page {page} / {pages}
+      </span>
+      <button
+        type="button"          // 👈 idem aqui
+        disabled={!canNext}
+        onClick={handleNext}
+      >
+        Next
+      </button>
     </div>
   );
 }

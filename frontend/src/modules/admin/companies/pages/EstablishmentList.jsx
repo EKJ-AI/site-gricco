@@ -1,4 +1,3 @@
-// src/modules/admin/companies/pages/EstablishmentList.jsx
 import React, { useEffect, useState } from 'react';
 import {
   listEstablishments,
@@ -15,6 +14,7 @@ export default function EstablishmentList() {
   const { companyId } = useParams();
 
   const [q, setQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active'
   const [data, setData] = useState({
     items: [],
     total: 0,
@@ -28,7 +28,7 @@ export default function EstablishmentList() {
     try {
       const res = await listEstablishments(
         companyId,
-        { page, pageSize: 12, q },
+        { page, pageSize: 12, q, status: statusFilter },
         accessToken,
       );
       setData(res || { items: [], total: 0, page, pageSize: 12 });
@@ -46,12 +46,16 @@ export default function EstablishmentList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, accessToken]);
 
+  useEffect(() => {
+    fetcher(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
+
   const handleDelete = async (id) => {
     if (!window.confirm('Confirm delete?')) return;
     setErr('');
     try {
       await deleteEstablishment(companyId, id, accessToken);
-      // recarrega a página atual
       fetcher(data.page);
     } catch (e) {
       console.error('[EstablishmentList] deleteEstablishment error', e);
@@ -66,13 +70,21 @@ export default function EstablishmentList() {
     <div className="container">
       <div className="page-header">
         <h2>Establishments</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             placeholder="Search..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <button onClick={() => fetcher(1)}>Search</button>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All (active + inactive)</option>
+            <option value="active">Only active</option>
+          </select>
 
           <RequirePermission permission="establishment.create">
             <Link

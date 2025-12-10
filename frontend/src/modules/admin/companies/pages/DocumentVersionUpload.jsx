@@ -1,4 +1,3 @@
-// src/modules/companies/pages/DocumentVersionUpload.jsx
 import React, { useState } from 'react';
 import FileDropzone from '../components/FileDropzone.jsx';
 import { uploadVersion } from '../api/documents';
@@ -11,6 +10,7 @@ export default function DocumentVersionUpload() {
   const navigate = useNavigate();
 
   const [file, setFile] = useState(null);
+  const [description, setDescription] = useState(''); // 👈 NOVO
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -25,6 +25,9 @@ export default function DocumentVersionUpload() {
       setUploading(true);
       const fd = new FormData();
       fd.append('file', file);
+      if (description.trim()) {
+        fd.append('changeDescription', description.trim());
+      }
       await uploadVersion(
         companyId,
         establishmentId,
@@ -53,6 +56,19 @@ export default function DocumentVersionUpload() {
             Selected: <strong>{file.name}</strong> ({file.size} bytes)
           </div>
         )}
+
+        <div style={{ marginTop: 12 }}>
+          <label>
+            Version description (what changed?)
+            <textarea
+              rows={3}
+              placeholder="Explique brevemente o que mudou nesta versão em relação à anterior..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </label>
+        </div>
+
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <button type="submit" disabled={uploading}>
             {uploading ? 'Uploading…' : 'Upload'}

@@ -1,4 +1,3 @@
-// src/modules/admin/companies/pages/CompanyList.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CompanyCard from '../components/CompanyCard.jsx';
@@ -10,7 +9,13 @@ import RequirePermission from '../../../../shared/hooks/RequirePermission';
 export default function CompanyList() {
   const { accessToken } = useAuth();
   const [q, setQ] = useState('');
-  const [data, setData] = useState({ items: [], total: 0, page: 1, pageSize: 12 });
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active'
+  const [data, setData] = useState({
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 12,
+  });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -18,7 +23,10 @@ export default function CompanyList() {
     setLoading(true);
     setErr('');
     try {
-      const res = await listCompanies({ page, pageSize: 12, q }, accessToken);
+      const res = await listCompanies(
+        { page, pageSize: 12, q, status: statusFilter },
+        accessToken,
+      );
       setData(res || { items: [], total: 0, page, pageSize: 12 });
     } catch (e) {
       console.error(e);
@@ -33,6 +41,11 @@ export default function CompanyList() {
     fetcher(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetcher(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Confirm delete?')) return;
@@ -50,13 +63,21 @@ export default function CompanyList() {
     <div className="container">
       <div className="page-header">
         <h2>Companies</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             placeholder="Search..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <button onClick={() => fetcher(1)}>Search</button>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All (active + inactive)</option>
+            <option value="active">Only active</option>
+          </select>
 
           <RequirePermission permission="company.create">
             <Link to="/companies/new" className="primary">

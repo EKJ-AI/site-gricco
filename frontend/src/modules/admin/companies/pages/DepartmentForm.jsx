@@ -18,6 +18,7 @@ export default function DepartmentForm({ mode = 'create' }) {
     description: '',
     shift: '',
     workload: '',
+    isActive: true,
   });
   const [error, setError] = useState('');
 
@@ -40,6 +41,8 @@ export default function DepartmentForm({ mode = 'create' }) {
             description: d.description || '',
             shift: d.shift || '',
             workload: d.workload || '',
+            isActive:
+              typeof d.isActive === 'boolean' ? d.isActive : true,
           });
         })
         .catch(() => {
@@ -124,6 +127,22 @@ export default function DepartmentForm({ mode = 'create' }) {
             }
           />
         </div>
+
+        <div style={{ margin: '8px 0 16px' }}>
+          <label
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+          >
+            <input
+              type="checkbox"
+              checked={!!form.isActive}
+              onChange={(e) =>
+                setForm({ ...form, isActive: e.target.checked })
+              }
+            />
+            Department active
+          </label>
+        </div>
+
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="submit" disabled={saveDisabled}>
             Save

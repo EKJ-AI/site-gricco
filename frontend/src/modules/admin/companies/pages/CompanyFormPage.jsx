@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { createCompany, getCompany, updateCompany } from '../api/companies';
 import CompanyForm from './CompanyForm.jsx';
-import usePermission from '../../../auth/hooks/usePermission'; // 👈 ADICIONADO
+import usePermission from '../../../auth/hooks/usePermission'; // 👈
 
 export default function CompanyFormPage() {
   const params = useParams();

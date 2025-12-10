@@ -87,6 +87,8 @@ model User {
 
   accessLogs DocumentAccessLog[] @relation("UserDocumentAccessLogs")
 
+  isActive Boolean @default(true)
+
   @@index([createdAt])
 }
 
@@ -210,6 +212,8 @@ model Company {
   createdByUserId Int?
   createdBy       User? @relation("UserCompaniesCreated", fields: [createdByUserId], references: [id])
 
+  isActive Boolean @default(true)
+
   establishments Establishment[]
   employees      Employee[]
 
@@ -243,6 +247,8 @@ model Establishment {
 
   legalRepName String?
   legalRepCpf  String?
+
+  isActive Boolean @default(true)
 
   company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   cnaes       EstablishmentCNAE[]
@@ -293,6 +299,8 @@ model Department {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  isActive Boolean @default(true)
+
   establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
   employees     Employee[]
 }
@@ -316,6 +324,16 @@ model Employee {
   email           String?
   phone           String?
 
+  // 📍 Endereço do colaborador (espelhando Company/Establishment)
+  street       String?
+  number       String?
+  complement   String?
+  district     String?
+  city         String?
+  state        String?
+  zipCode      String?
+  ibgeCityCode String?
+
   // NOVO: vínculo opcional com o usuário que acessa o portal
   portalUserId       Int?
   portalUser         User?                     @relation(fields: [portalUserId], references: [id]) // 👈 sugiro adicionar
@@ -326,6 +344,8 @@ model Employee {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  isActive Boolean @default(true)
 
   company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
@@ -427,6 +447,9 @@ model DocumentVersion {
   size        Int
   sha256      String
 
+  /// Descrição do upload / o que mudou desta versão em relação à anterior
+  changeDescription String?
+
   uploadedByUserId Int?
   activatedAt      DateTime?
 
@@ -446,23 +469,6 @@ model DocumentVersion {
   @@unique([documentId, versionNumber])
   @@index([documentId, versionNumber], map: "idx_doc_version_sequence")
   @@index([versionStatus])
-}
-
-model DocumentView {
-  id                String   @id @default(cuid())
-  documentId        String
-  documentVersionId String
-  userId            Int?
-  viewedAt          DateTime @default(now())
-  ip                String?  @db.Inet
-  userAgent         String?
-
-  document Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  version  DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
-  user     User?           @relation(fields: [userId], references: [id])
-
-  @@index([documentId, documentVersionId, viewedAt])
-  @@index([userId, viewedAt])
 }
 
 model DocumentAccessLog {

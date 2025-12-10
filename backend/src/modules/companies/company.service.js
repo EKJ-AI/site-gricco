@@ -1,4 +1,3 @@
-// src/modules/companies/company.service.js
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
 import {
@@ -19,24 +18,6 @@ function normalizeCnae(code) {
 
 /**
  * Cria a Company e, opcionalmente, cria a Estabelecimento MATRIZ automaticamente.
- * - Enriquecimento por CNPJ (BrasilAPI/OpenCNPJ)
- * - Enriquecimento por CEP (ViaCEP) se não vier endereço completo
- * - Sincroniza CNAEs e define mainCnae/riskLevel pelo maior risco
- *
- * Params:
- *  - payload: dados da empresa
- *    {
- *      cnpj, legalName?, tradeName?, startAt?,
- *      companySize?, taxRegime?, fiscalEmail?, phone?, website?,
- *      street?, number?, complement?, district?, city?, state?, zipCode?, ibgeCityCode?,
- *      tenantId?,
- *      createHeadquarter?: boolean,
- *      headquarter?: {
- *        nickname?, cnpj?, street?, ... , cnaes?: [{ code, title?, riskLevel? }]
- *      },
- *      cnaes?: [{ code, title?, riskLevel? }] // opcional: CNAEs no nível da company para repassar à matriz
- *    }
- *  - userId: para auditoria futura
  */
 export async function createCompanyWithHeadquarter(payload, userId) {
   logger.info('[COMPANY] createCompanyWithHeadquarter:start');
@@ -95,10 +76,7 @@ export async function createCompanyWithHeadquarter(payload, userId) {
         ? new Date(enriched.startAt)
         : null,
       companySize:
-        companySize ??
-        enriched?.porteDescription ??
-        enriched?.porte ??
-        null,
+        companySize ?? enriched?.porteDescription ?? enriched?.porte ?? null,
       taxRegime: taxRegime ?? enriched?.taxRegime ?? null,
       fiscalEmail: fiscalEmail ?? enriched?.fiscalEmail ?? null,
       phone: phone ?? enriched?.phone ?? null,
@@ -110,9 +88,9 @@ export async function createCompanyWithHeadquarter(payload, userId) {
       city: city ?? enriched?.city ?? null,
       state: state ?? enriched?.state ?? null,
       zipCode: zipCode ?? enriched?.zipCode ?? null,
-      // ibgeCityCode será tratado logo abaixo
-
-      // 👇 vínculo do “dono” da empresa (Admin local)
+      // 👇 empresa nasce ativa
+      isActive: true,
+      // vínculo do “dono” da empresa (Admin local)
       createdByUserId: userId ?? null,
     };
 
@@ -120,16 +98,14 @@ export async function createCompanyWithHeadquarter(payload, userId) {
       companyData.tenantId = tenantId;
     }
 
-    // 2.1) ibgeCityCode SEMPRE como string ou null (Prisma espera String)
+    // 2.1) ibgeCityCode SEMPRE como string ou null
     const rawIbge =
       ibgeCityCode ??
       enriched?.ibgeCityCode ??
       null;
 
     companyData.ibgeCityCode =
-      rawIbge === null ||
-      rawIbge === undefined ||
-      rawIbge === ''
+      rawIbge === null || rawIbge === undefined || rawIbge === ''
         ? null
         : String(rawIbge);
 
@@ -192,6 +168,8 @@ export async function createCompanyWithHeadquarter(payload, userId) {
         nickname: h.nickname ?? 'Matriz',
         cnpj: estCnpj,
         isHeadquarter: true,
+        isActive: true, // 👈 matriz nasce ativa
+        // mainCnae / riskLevel ficam a cargo do fluxo de CNAEs
         street: h.street ?? estEnriched?.street ?? company.street ?? null,
         number: h.number ?? estEnriched?.number ?? company.number ?? null,
         complement:
@@ -228,7 +206,7 @@ export async function createCompanyWithHeadquarter(payload, userId) {
       head = await tx.establishment.create({ data: estDataBase });
       logger.info(`[HQ] matriz criada establishment.id=${head.id}`);
 
-      // 3.1) CNAEs da matriz (prioridade: headquarter.cnaes > payload.cnaes > enriquecido do CNPJ)
+      // 3.1) CNAEs da matriz (...)
       let cnaesForHead =
         Array.isArray(h.cnaes) && h.cnaes.length
           ? h.cnaes

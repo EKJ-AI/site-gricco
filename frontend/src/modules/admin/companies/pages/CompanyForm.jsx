@@ -1,4 +1,3 @@
-// src/modules/admin/companies/components/CompanyForm.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
@@ -18,7 +17,7 @@ function onlyDigits(v = '') {
  */
 export default function CompanyForm({
   initialData = {},
-  onSubmit,          // opcional
+  onSubmit, // opcional
   submitting = false,
   readOnly = false,
 }) {
@@ -26,7 +25,7 @@ export default function CompanyForm({
   const navigate = useNavigate();
   const { companyId } = useParams();
   const mode = companyId ? 'edit' : 'create';
-  
+
   const [form, setForm] = useState({
     cnpj: initialData.cnpj || '',
     legalName: initialData.legalName || '',
@@ -46,6 +45,11 @@ export default function CompanyForm({
     state: initialData.state || '',
     zipCode: initialData.zipCode || '',
     ibgeCityCode: initialData.ibgeCityCode || '',
+    // status
+    isActive:
+      typeof initialData.isActive === 'boolean'
+        ? initialData.isActive
+        : true,
   });
 
   const [internalSubmitting, setInternalSubmitting] = useState(false);
@@ -61,6 +65,10 @@ export default function CompanyForm({
       startAt: initialData.startAt
         ? String(initialData.startAt).slice(0, 10)
         : prev.startAt,
+      isActive:
+        typeof initialData.isActive === 'boolean'
+          ? initialData.isActive
+          : (prev.isActive ?? true),
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData?.id]);
@@ -213,6 +221,19 @@ export default function CompanyForm({
         </label>
       </div>
 
+      {/* Status da empresa */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={!!form.isActive}
+            onChange={(e) => setVal('isActive', e.target.checked)}
+            disabled={readOnly}
+          />
+          Empresa ativa
+        </label>
+      </div>
+
       <div className="grid-2">
         <label>
           Razão Social
@@ -356,6 +377,14 @@ export default function CompanyForm({
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Salvando…' : 'Salvar'}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => navigate(-1)}
+            disabled={isSubmitting}
+          >
+            Cancelar
           </button>
         </div>
       )}

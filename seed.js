@@ -21,6 +21,10 @@ const PERMISSIONS = [
   'user.read',
   'user.update',
   'user.delete',
+
+  // Ativação / desativação (soft delete) de usuários
+  'user.active',
+
   'profile.manage',
   'permission.manage',
 
@@ -41,11 +45,17 @@ const PERMISSIONS = [
   'company.update',
   'company.delete',
 
+  // Ativação / desativação de Company
+  'company.active',
+
   // Establishments
   'establishment.read',
   'establishment.create',
   'establishment.update',
   'establishment.delete',
+
+  // Ativação / desativação de Establishment
+  'establishment.active',
 
   // Departments
   'department.read',
@@ -53,11 +63,17 @@ const PERMISSIONS = [
   'department.update',
   'department.delete',
 
+  // Ativação / desativação de Department
+  'department.active',
+
   // Employees
   'employee.read',
   'employee.create',
   'employee.update',
   'employee.delete',
+
+  // Ativação / desativação de Employee
+  'employee.active',
 
   // Document Types
   'documentType.read',
@@ -71,14 +87,18 @@ const PERMISSIONS = [
   'document.update',
   'document.delete',
 
+  // Ativação / desativação de Document
+  'document.active',
+
   // Document Versions (arquivos)
   'documentVersion.read',
   'documentVersion.create',
   'documentVersion.activate',
   'documentVersion.archive',
 
-  // Visualização (logar quem viu)
+  // Visualização / Download (para logar quem viu / baixou)
   'document.view',
+  'document.download',
 
   // Catálogos / tabelas auxiliares
   'catalog.read',
@@ -134,24 +154,28 @@ const PROFILE_CONFIG = [
       'company.create',
       'company.update',
       'company.delete',
+      'company.active', // 👈 novo
 
       // Estabelecimentos
       'establishment.read',
       'establishment.create',
       'establishment.update',
       'establishment.delete',
+      'establishment.active', // 👈 novo
 
       // Departamentos
       'department.read',
       'department.create',
       'department.update',
       'department.delete',
+      'department.active', // 👈 novo
 
       // Employees
       'employee.read',
       'employee.create',
       'employee.update',
       'employee.delete',
+      'employee.active', // 👈 novo
 
       // Document Types
       'documentType.read',
@@ -160,15 +184,17 @@ const PROFILE_CONFIG = [
       'document.read',
       'document.create',
       'document.update',
-      'document.delete',        // ✅ ADICIONADO para conseguir usar o botão Delete no frontend
+      'document.delete',
+      'document.active', // 👈 novo
 
       // Versões de documentos
-      'documentVersion.read',   // ✅ ADICIONADO (coerente com o papel de admin da empresa)
+      'documentVersion.read',
       'documentVersion.create',
       'documentVersion.activate',
 
-      // Visualização de documentos
+      // Visualização / download de documentos
       'document.view',
+      'document.download',
 
       // Inspeções, relatórios, treinamentos
       'inspection.read',
@@ -198,12 +224,15 @@ const PROFILE_CONFIG = [
       'document.read',
       'document.create',
       'document.update',
+      'document.active', // 👈 pode ativar/desativar documentos
 
-      'documentVersion.read',    // ✅ ADICIONADO para poder listar/baixar versões
+      'documentVersion.read',
       'documentVersion.create',
       'documentVersion.activate',
 
       'document.view',
+      'document.download',
+
       'catalog.read',
 
       'dashboard.view',
@@ -231,6 +260,7 @@ const PROFILE_CONFIG = [
       'document.read',
       'documentVersion.read',
       'document.view',
+      'document.download',
 
       'catalog.read',
       'dashboard.view',
@@ -238,6 +268,26 @@ const PROFILE_CONFIG = [
       'inspection.read',
       'report.read',
       'training.read',
+    ],
+  },
+  {
+    // ⚠️ Nome bate com o usado em employee.controller:
+    // PORTAL_EMPLOYEE_PROFILE_NAME || 'Portal Employee'
+    name: 'Portal Employee',
+    description:
+      'Colaborador de portal com acesso apenas aos documentos dos estabelecimentos aos quais está vinculado.',
+    perms: [
+      // acesso às telas básicas do estabelecimento
+      'establishment.read',
+
+      // leitura de documentos (o escopo real é filtrado pelo vínculo Employee.portalUserId)
+      'document.read',
+      'documentVersion.read',
+      'document.view',
+      'document.download',
+
+      // leitura de catálogos (ex.: CBO, CNAE, etc.)
+      'catalog.read',
     ],
   },
 ];
@@ -287,7 +337,10 @@ async function seedProfiles(permIds) {
     ),
   );
 
-  console.log('✅ Perfis criados/atualizados:', upsertedProfiles.map((p) => p.name).join(', '));
+  console.log(
+    '✅ Perfis criados/atualizados:',
+    upsertedProfiles.map((p) => p.name).join(', '),
+  );
 
   // Relações Perfil-Permissão
   console.log('🔗 Associando permissões aos perfis...');
@@ -326,7 +379,9 @@ async function seedAdminGlobalUser(profiles) {
 
   const adminProfile = profiles.find((p) => p.name === 'ADMIN');
   if (!adminProfile) {
-    throw new Error('Perfil ADMIN não encontrado ao tentar criar usuário Admin Global.');
+    throw new Error(
+      'Perfil ADMIN não encontrado ao tentar criar usuário Admin Global.',
+    );
   }
 
   const adminEmail = (process.env.ADMIN_EMAIL || 'admin@admin.com').trim();
@@ -344,12 +399,14 @@ async function seedAdminGlobalUser(profiles) {
     where: { email: adminEmail },
     update: {
       profileId: adminProfile.id,
+      isActive: true,
     },
     create: {
       name: 'Administrador Global',
       email: adminEmail,
       passwordHash,
       profileId: adminProfile.id,
+      isActive: true,
     },
   });
 
@@ -361,7 +418,9 @@ async function seedAdminGlobalUser(profiles) {
 // ------------------------------------------------------
 
 async function main() {
-  console.log('🌱 Iniciando Seed de RBAC (permissões, perfis e Admin Global)...');
+  console.log(
+    '🌱 Iniciando Seed de RBAC (permissões, perfis, Portal Employee e Admin Global)...',
+  );
 
   try {
     const permIds = await seedPermissions();

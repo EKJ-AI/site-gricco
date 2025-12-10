@@ -21,6 +21,10 @@ const PERMISSIONS = [
   'user.read',
   'user.update',
   'user.delete',
+
+  // Ativação / desativação (soft delete) de usuários
+  'user.active',
+
   'profile.manage',
   'permission.manage',
 
@@ -41,11 +45,17 @@ const PERMISSIONS = [
   'company.update',
   'company.delete',
 
+  // Ativação / desativação de Company
+  'company.active',
+
   // Establishments
   'establishment.read',
   'establishment.create',
   'establishment.update',
   'establishment.delete',
+
+  // Ativação / desativação de Establishment
+  'establishment.active',
 
   // Departments
   'department.read',
@@ -53,11 +63,17 @@ const PERMISSIONS = [
   'department.update',
   'department.delete',
 
+  // Ativação / desativação de Department
+  'department.active',
+
   // Employees
   'employee.read',
   'employee.create',
   'employee.update',
   'employee.delete',
+
+  // Ativação / desativação de Employee
+  'employee.active',
 
   // Document Types
   'documentType.read',
@@ -71,9 +87,16 @@ const PERMISSIONS = [
   'document.update',
   'document.delete',
 
+  // Ativação / desativação de Document
+  'document.active',
+
+  // 📌 NOVA: permissão para visualizar registros de acesso de documentos
+  'document.log',
+
   // Document Versions (arquivos)
   'documentVersion.read',
   'documentVersion.create',
+  'documentVersion.update',
   'documentVersion.activate',
   'documentVersion.archive',
 
@@ -135,24 +158,28 @@ const PROFILE_CONFIG = [
       'company.create',
       'company.update',
       'company.delete',
+      'company.active',
 
       // Estabelecimentos
       'establishment.read',
       'establishment.create',
       'establishment.update',
       'establishment.delete',
+      'establishment.active',
 
       // Departamentos
       'department.read',
       'department.create',
       'department.update',
       'department.delete',
+      'department.active',
 
       // Employees
       'employee.read',
       'employee.create',
       'employee.update',
       'employee.delete',
+      'employee.active',
 
       // Document Types
       'documentType.read',
@@ -162,11 +189,17 @@ const PROFILE_CONFIG = [
       'document.create',
       'document.update',
       'document.delete',
+      'document.active',
+
+      // 📌 pode ver registros (logs) de documentos
+      'document.log',
 
       // Versões de documentos
       'documentVersion.read',
       'documentVersion.create',
       'documentVersion.activate',
+      'documentVersion.archive',
+      'documentVersion.update',
 
       // Visualização / download de documentos
       'document.view',
@@ -200,6 +233,10 @@ const PROFILE_CONFIG = [
       'document.read',
       'document.create',
       'document.update',
+      'document.active',
+
+      // 📌 também consegue ver registros
+      'document.log',
 
       'documentVersion.read',
       'documentVersion.create',
@@ -252,14 +289,65 @@ const PROFILE_CONFIG = [
     description:
       'Colaborador de portal com acesso apenas aos documentos dos estabelecimentos aos quais está vinculado.',
     perms: [
+      // possibilita acessar a empresa e estabelecimento vinculados
+      'company.read',
+      'company.update',
+
+      'dashboard.view',
+
+      'department.active',
+      'department.create',
+      'department.delete',
+      'department.read',
+      'department.update',
+
+      // acesso às telas básicas do estabelecimento
+      'establishment.active',
+      'establishment.create',
+      'establishment.delete',
+      'establishment.read',
+      'establishment.update',
+
+      // leitura de documentos (o escopo real é filtrado pelo vínculo Employee.portalUserId)
+      'document.read',
+      'document.view',
+      'document.download',
+      'document.active',
+      'document.create',
+      'document.delete',
+      'document.update',
+
+      'documentVersion.activate',
+      'documentVersion.archive',
+      'documentVersion.create',
+      'documentVersion.read',
+      'documentVersion.update',
+
+      'employee.active',
+      'employee.create',
+      'employee.delete',
+      'employee.read',
+      'employee.update',
+
+      // leitura de catálogos (ex.: CBO, CNAE, etc.)
+      'catalog.read',
+    ],
+  },
+  {
+    name: 'Guest',
+    description: 'Apenas visualiza os documentos da empresa.',
+    perms: [
+      // possibilita acessar a empresa e estabelecimento vinculados
+      'company.read',
+
+      'dashboard.view',
+
       // acesso às telas básicas do estabelecimento
       'establishment.read',
 
       // leitura de documentos (o escopo real é filtrado pelo vínculo Employee.portalUserId)
       'document.read',
-      'documentVersion.read',
       'document.view',
-      'document.download',
 
       // leitura de catálogos (ex.: CBO, CNAE, etc.)
       'catalog.read',
@@ -374,12 +462,14 @@ async function seedAdminGlobalUser(profiles) {
     where: { email: adminEmail },
     update: {
       profileId: adminProfile.id,
+      isActive: true,
     },
     create: {
       name: 'Administrador Global',
       email: adminEmail,
       passwordHash,
       profileId: adminProfile.id,
+      isActive: true,
     },
   });
 

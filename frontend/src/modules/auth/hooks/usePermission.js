@@ -11,7 +11,7 @@ export default function usePermission(required) {
     return required.some(r => permissions.includes(r));
   }
 
-  console.log('[usePermission] Verificando permissão:', required, '->', permissions.includes(required));
+  // console.log('[usePermission] Verificando permissão:', required, '->', permissions.includes(required));
 
   return permissions.includes(required);
 }

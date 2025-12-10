@@ -1,13 +1,10 @@
-import { parsePagination } from '../../infra/http/pagination.js';
 import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
-
 import bcrypt from 'bcrypt';
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
 import {
   signJwt,
   signRefreshJwt,
-  verifyJwt,
   verifyRefreshJwt,
 } from '../../utils/jwt.js';
 
@@ -24,10 +21,23 @@ const REFRESH_COOKIE_OPTS = {
   ...(isProd ? { domain: '.gricco.com.br' } : {}), // só seta domain em prod
 };
 
-// Helper: pega um vínculo de Employee para este usuário de portal
-async function getPortalContextForUser(userId) {
+// Helper exportado: pega um vínculo de Employee para este usuário de portal
+export async function getPortalContextForUser(userId) {
+  // Só considera vínculos totalmente ativos:
+  // - Employee.isActive = true
+  // - Establishment.isActive = true
+  // - Company.isActive = true
   const emp = await prisma.employee.findFirst({
-    where: { portalUserId: userId },
+    where: {
+      portalUserId: userId,
+      isActive: true,
+      establishment: {
+        isActive: true,
+        company: {
+          isActive: true,
+        },
+      },
+    },
     select: {
       id: true,
       companyId: true,
@@ -56,12 +66,10 @@ export async function login(req, res) {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: 'Email e senha são obrigatórios',
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'Email e senha são obrigatórios',
+      });
     }
 
     const user = await prisma.user.findUnique({
@@ -80,6 +88,16 @@ export async function login(req, res) {
       return res
         .status(401)
         .json({ success: false, message: 'Credenciais inválidas' });
+    }
+
+    // ✅ Bloqueia usuário inativo
+    if (!user.isActive) {
+      logger.warn(
+        `[AUTH] Login blocked: user inactive for ${email} (id=${user.id})`,
+      );
+      return res
+        .status(403)
+        .json({ success: false, message: 'Usuário inativo' });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -107,7 +125,7 @@ export async function login(req, res) {
       (p) => p.permission.name,
     );
 
-    // 👇 NOVO: contexto de colaborador de portal (se existir)
+    // Contexto de colaborador de portal (se existir)
     const portalContext = await getPortalContextForUser(user.id);
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTS);
@@ -125,19 +143,17 @@ export async function login(req, res) {
           permissions,
         },
       },
-      portalContext, // 👈 usado pelo frontend para redirecionar colaborador
+      portalContext, // usado pelo frontend para redirecionar colaborador
     });
   } catch (err) {
     logger.error('[AUTH] Login error', err);
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
-      return res
-        .status(mapped.status)
-        .json({
-          success: false,
-          error: mapped.code,
-          message: mapped.message,
-        });
+      return res.status(mapped.status).json({
+        success: false,
+        error: mapped.code,
+        message: mapped.message,
+      });
     }
     res
       .status(500)
@@ -158,12 +174,10 @@ export async function refresh(req, res) {
     const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
     if (!refreshToken) {
       logger.warn('[AUTH] Refresh failed: no refreshToken cookie');
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: 'Refresh token obrigatório',
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token obrigatório',
+      });
     }
 
     const decoded = verifyRefreshJwt(refreshToken);
@@ -173,12 +187,10 @@ export async function refresh(req, res) {
       );
       // Limpa cookie para não ficar tentando em loop
       res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: 'Refresh token inválido ou expirado',
-        });
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token inválido ou expirado',
+      });
     }
 
     const user = await prisma.user.findUnique({
@@ -209,6 +221,26 @@ export async function refresh(req, res) {
         .json({ success: false, message: 'Refresh token inválido' });
     }
 
+    // ✅ Bloqueia refresh para usuário inativo
+    if (!user.isActive) {
+      logger.warn(
+        `[AUTH] Refresh blocked: user inactive for userId ${user.id}`,
+      );
+
+      await prisma.user
+        .update({
+          where: { id: user.id },
+          data: { refreshToken: null },
+        })
+        .catch(() => {});
+
+      res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
+
+      return res
+        .status(403)
+        .json({ success: false, message: 'Usuário inativo' });
+    }
+
     // Rotaciona ambos os tokens
     const newAccessToken = signJwt({
       sub: user.id,
@@ -225,7 +257,7 @@ export async function refresh(req, res) {
     const permissions = user.profile.permissions.map(
       (p) => p.permission.name,
     );
-    const portalContext = await getPortalContextForUser(user.id); // 👈 NOVO
+    const portalContext = await getPortalContextForUser(user.id);
 
     res.cookie(REFRESH_COOKIE_NAME, newRefreshToken, REFRESH_COOKIE_OPTS);
 
@@ -242,7 +274,7 @@ export async function refresh(req, res) {
           permissions,
         },
       },
-      portalContext, // 👈 frontend consegue hidratar colaborador sem relogar
+      portalContext, // frontend consegue hidratar colaborador sem relogar
     });
   } catch (err) {
     logger.error('[AUTH] Refresh error', err);
@@ -250,13 +282,11 @@ export async function refresh(req, res) {
     res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
-      return res
-        .status(mapped.status)
-        .json({
-          success: false,
-          error: mapped.code,
-          message: mapped.message,
-        });
+      return res.status(mapped.status).json({
+        success: false,
+        error: mapped.code,
+        message: mapped.message,
+      });
     }
     res
       .status(500)
@@ -296,13 +326,11 @@ export async function logout(req, res) {
     res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
-      return res
-        .status(mapped.status)
-        .json({
-          success: false,
-          error: mapped.code,
-          message: mapped.message,
-        });
+      return res.status(mapped.status).json({
+        success: false,
+        error: mapped.code,
+        message: mapped.message,
+      });
     }
     res
       .status(500)

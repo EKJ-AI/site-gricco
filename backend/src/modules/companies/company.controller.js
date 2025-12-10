@@ -1,3 +1,4 @@
+// src/modules/companies/company.controller.js
 import prisma from '../../../prisma/client.js';
 import { parsePagination } from '../../infra/http/pagination.js';
 import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
@@ -36,9 +37,97 @@ function normalizeCnpj(cnpj) {
   return String(cnpj).replace(/\D+/g, '');
 }
 
+/**
+ * 🔽 Auxiliar: desativar estabelecimentos e usuários de portal ao desativar a empresa.
+ *
+ * NÃO mexe em Employee.isActive.
+ * Desativa Users que, após a desativação, não tiverem nenhum vínculo
+ * "válido" (Employee ativo em empresa + estabelecimento ativos).
+ */
+async function cascadeCompanyDeactivation(companyId) {
+  await prisma.$transaction(async (tx) => {
+    // 1) Desativar todos os estabelecimentos da empresa
+    await tx.establishment.updateMany({
+      where: { companyId, isActive: true },
+      data: { isActive: false },
+    });
+
+    // 2) Descobrir todos portalUserIds ligados a Employees dessa empresa
+    const employees = await tx.employee.findMany({
+      where: {
+        companyId,
+        portalUserId: { not: null },
+      },
+      select: { portalUserId: true },
+    });
+
+    const portalUserIds = [
+      ...new Set(employees.map((e) => e.portalUserId)),
+    ];
+
+    if (!portalUserIds.length) return;
+
+    // 3) Para cada usuário, verifica se ainda existe algum vínculo "válido"
+    for (const userId of portalUserIds) {
+      const remaining = await tx.employee.count({
+        where: {
+          portalUserId: userId,
+          isActive: true,
+          company: { isActive: true },
+          establishment: { isActive: true },
+        },
+      });
+
+      if (remaining === 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { isActive: false },
+        });
+      }
+    }
+  });
+}
+
+/**
+ * 🔼 Auxiliar: ao reativar empresa, reativar estabelecimentos e usuários de portal
+ * baseados em Employees ATIVOS com portalUserId.
+ */
+async function cascadeCompanyActivation(companyId) {
+  await prisma.$transaction(async (tx) => {
+    // 1) Reativar todos os estabelecimentos da empresa
+    await tx.establishment.updateMany({
+      where: { companyId },
+      data: { isActive: true },
+    });
+
+    // 2) Employees ativos, com portalUserId, em company + establishment ativos
+    const employees = await tx.employee.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        portalUserId: { not: null },
+        company: { isActive: true },
+        establishment: { isActive: true },
+      },
+      select: { portalUserId: true },
+    });
+
+    const portalUserIds = [
+      ...new Set(employees.map((e) => e.portalUserId)),
+    ];
+
+    if (!portalUserIds.length) return;
+
+    await tx.user.updateMany({
+      where: { id: { in: portalUserIds } },
+      data: { isActive: true },
+    });
+  });
+}
+
 export async function list(req, res) {
   try {
-    const { q } = req.query;
+    const { q, status, includeInactive, isActive } = req.query;
     const { skip, take, page, pageSize } = parsePagination(req);
 
     const perms = req.user?.permissions || [];
@@ -48,7 +137,6 @@ export async function list(req, res) {
     const whereSearch = q
       ? {
           OR: [
-            // busca por CNPJ usando só dígitos
             {
               cnpj: {
                 contains: normalizeCnpj(q),
@@ -62,22 +150,19 @@ export async function list(req, res) {
         }
       : {};
 
-    let where = {};
+    let whereBase = {};
 
     if (isGlobalAdmin) {
       // 🔓 Global admin → vê todas
-      where = { ...whereSearch };
+      whereBase = {};
     } else if (isCompanyAdmin) {
       // 🔓 Company admin → apenas empresas criadas por ele
-      where = {
-        ...whereSearch,
+      whereBase = {
         createdByUserId: req.user.id,
       };
     } else {
-      // 👇 Caso: perfil com company.read, mas NÃO company.admin
-      // Ex: sub-admin / colaborador do cliente
+      // 👇 Leitor comum (company.read sem company.admin)
       // Só enxerga empresas onde é Employee (via portalUserId)
-
       const empCompanies = await prisma.employee.findMany({
         where: {
           portalUserId: req.user.id,
@@ -96,11 +181,44 @@ export async function list(req, res) {
         });
       }
 
-      where = {
-        ...whereSearch,
+      whereBase = {
         id: { in: companyIds },
       };
     }
+
+    // ---------- Filtro de status (NOVA LÓGICA) ----------
+    let whereIsActive = {};
+
+    // 1) status = all | active | inactive → tem prioridade
+    if (typeof status === 'string') {
+      const s = status.toLowerCase();
+      if (s === 'active') {
+        whereIsActive = { isActive: true };
+      } else if (s === 'inactive') {
+        whereIsActive = { isActive: false };
+      } else if (s === 'all') {
+        whereIsActive = {}; // sem filtro
+      }
+    } else if (typeof isActive !== 'undefined') {
+      // 2) isActive explícito (compat legada)
+      const v = String(isActive).toLowerCase();
+      if (v === 'true' || v === '1') whereIsActive = { isActive: true };
+      else if (v === 'false' || v === '0') whereIsActive = { isActive: false };
+    } else if (typeof includeInactive !== 'undefined') {
+      // 3) includeInactive (legado: true = tudo, false = só ativas)
+      const inc = String(includeInactive).toLowerCase();
+      const showAll = inc === 'true' || inc === '1';
+      whereIsActive = showAll ? {} : { isActive: true };
+    } else {
+      // 4) default: só ativas
+      whereIsActive = { isActive: true };
+    }
+
+    const where = {
+      ...whereBase,
+      ...whereSearch,
+      ...whereIsActive,
+    };
 
     const [total, items] = await Promise.all([
       prisma.company.count({ where }),
@@ -135,17 +253,13 @@ export async function getById(req, res) {
     let where = { id };
 
     if (isGlobalAdmin) {
-      // 🔓 Global admin → sem filtro extra
       where = { id };
     } else if (isCompanyAdmin) {
-      // 🔓 Company admin → empresa que ele criou
       where = {
         id,
         createdByUserId: req.user.id,
       };
     } else {
-      // 👇 Leitor comum (company.read sem company.admin)
-      // Só pode ver empresas onde é Employee (portalUserId)
       where = {
         id,
         employees: {
@@ -237,6 +351,8 @@ export async function create(req, res) {
         cnpj: company.cnpj,
         headquarterId: headquarter?.id || null,
       }),
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
     });
 
     return res
@@ -260,7 +376,7 @@ export async function update(req, res) {
     // garante escopo de escrita (global / company.admin)
     const existing = await prisma.company.findFirst({
       where: buildCompanyScopeWhere(req.user, { id }),
-      select: { id: true, tenantId: true, cnpj: true },
+      select: { id: true, tenantId: true, cnpj: true, isActive: true },
     });
 
     if (!existing) {
@@ -268,6 +384,8 @@ export async function update(req, res) {
         .status(404)
         .json({ success: false, message: 'Company not found' });
     }
+
+    const previousIsActive = existing.isActive;
 
     // Se estiver alterando CNPJ, evitar mudar para um CNPJ já existente
     if (data.cnpj !== undefined) {
@@ -332,8 +450,20 @@ export async function update(req, res) {
         state: data.state ?? undefined,
         zipCode: data.zipCode ?? undefined,
         ibgeCityCode: ibgeCityCodeValue,
+        // 👇 permite ativar/desativar via PUT /companies/:id
+        isActive:
+          typeof data.isActive === 'boolean' ? data.isActive : undefined,
       },
     });
+
+    // Se o status mudou, aplica cascata em Users/Establishments
+    if (typeof data.isActive === 'boolean') {
+      if (previousIsActive && !updated.isActive) {
+        await cascadeCompanyDeactivation(updated.id);
+      } else if (!previousIsActive && updated.isActive) {
+        await cascadeCompanyActivation(updated.id);
+      }
+    }
 
     await registerAudit({
       userId: req.user?.id,
@@ -341,6 +471,8 @@ export async function update(req, res) {
       entity: 'Company',
       entityId: id,
       details: JSON.stringify(Object.keys(data)),
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
     });
 
     res.json({ success: true, data: updated });
@@ -354,13 +486,17 @@ export async function update(req, res) {
   }
 }
 
+/**
+ * Soft delete: marca isActive = false em vez de deletar.
+ * Agora também aplica cascata em Establishments + Users.
+ */
 export async function remove(req, res) {
   try {
     const { id } = req.params;
 
     const existing = await prisma.company.findFirst({
       where: buildCompanyScopeWhere(req.user, { id }),
-      select: { id: true },
+      select: { id: true, isActive: true, cnpj: true },
     });
 
     if (!existing) {
@@ -369,23 +505,108 @@ export async function remove(req, res) {
         .json({ success: false, message: 'Company not found' });
     }
 
-    await prisma.company.delete({ where: { id } });
+    if (!existing.isActive) {
+      return res.json({
+        success: true,
+        message: 'Company already inactive (soft deleted previously)',
+      });
+    }
+
+    await prisma.company.update({
+      where: { id },
+      data: {
+        isActive: false,
+      },
+    });
+
+    // Cascata: desativar estabelecimentos e usuários de portal
+    await cascadeCompanyDeactivation(id);
 
     await registerAudit({
       userId: req.user?.id,
       action: 'DELETE',
       entity: 'Company',
       entityId: id,
-      details: '',
+      details: `Company marked as inactive (soft delete): ${existing.cnpj}`,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
     });
 
-    res.json({ success: true, message: 'Company removed' });
+    res.json({ success: true, message: 'Company marked as inactive' });
   } catch (err) {
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
       return res.status(mapped.status).json({ success: false, ...mapped });
     }
     console.error('[COMPANY] remove error', err);
+    res.status(500).json({ success: false, message: 'Internal error' });
+  }
+}
+
+/**
+ * Ativa / desativa explicitamente uma Company.
+ * Espera body: { isActive: boolean }
+ * Também aplica cascata em Establishments + Users.
+ */
+export async function setActive(req, res) {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body || {};
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Campo isActive (boolean) é obrigatório',
+      });
+    }
+
+    const existing = await prisma.company.findFirst({
+      where: buildCompanyScopeWhere(req.user, { id }),
+      select: { id: true, isActive: true, cnpj: true },
+    });
+
+    if (!existing) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Company not found' });
+    }
+
+    const updated = await prisma.company.update({
+      where: { id },
+      data: {
+        isActive,
+      },
+    });
+
+    // Cascata
+    if (!existing.isActive && isActive) {
+      await cascadeCompanyActivation(updated.id);
+    } else if (existing.isActive && !isActive) {
+      await cascadeCompanyDeactivation(updated.id);
+    }
+
+    await registerAudit({
+      userId: req.user?.id,
+      action: 'UPDATE',
+      entity: 'Company',
+      entityId: updated.id,
+      details: `Company ${isActive ? 'activated' : 'deactivated'}: ${
+        updated.cnpj
+      }`,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    res.json({
+      success: true,
+      message: `Company ${isActive ? 'activated' : 'deactivated'} successfully`,
+    });
+  } catch (err) {
+    const mapped = prismaErrorToHttp(err);
+    if (mapped) {
+      return res.status(mapped.status).json({ success: false, ...mapped });
+    }
+    console.error('[COMPANY] setActive error', err);
     res.status(500).json({ success: false, message: 'Internal error' });
   }
 }

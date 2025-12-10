@@ -1,4 +1,3 @@
-// src/modules/companies/pages/EstablishmentView.jsx
 import React, { useEffect, useState } from 'react';
 import { getEstablishment } from '../api/establishments.js';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
@@ -59,11 +58,28 @@ export default function EstablishmentView() {
     location.pathname ===
     `/companies/${companyId}/establishments/${establishmentId}`;
 
+  const isInactive = establishment?.isActive === false;
+
   return (
     <div className="container">
       <div className="page-header">
         <h2>
           {establishment?.nickname || establishment?.cnpj || 'Establishment'}
+          {isInactive && (
+            <span
+              style={{
+                marginLeft: 8,
+                padding: '2px 6px',
+                fontSize: 11,
+                borderRadius: 4,
+                backgroundColor: '#eee',
+                color: '#b00',
+                textTransform: 'uppercase',
+              }}
+            >
+              Inativo
+            </span>
+          )}
         </h2>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -1,4 +1,3 @@
-// src/utils/audit.js
 import prisma from '../../prisma/client.js';
 import logger from './logger.js';
 
@@ -34,6 +33,7 @@ function normalizeAction(raw) {
  * API compatível com o código antigo, mas adequando ao novo AuditLog:
  * - entity / entityId são "embutidos" no campo details
  * - action é normalizada para o enum AuditAction
+ * - ip / userAgent são gravados quando fornecidos
  */
 export async function registerAudit({
   userId,
@@ -41,6 +41,8 @@ export async function registerAudit({
   entity,
   entityId,
   details,
+  ip,
+  userAgent,
 }) {
   try {
     const normalizedAction = normalizeAction(action);
@@ -66,19 +68,18 @@ export async function registerAudit({
         userId: userId ?? null,
         action: normalizedAction,
         details: finalDetails || null,
-        // ip / userAgent: só o middleware tem acesso fácil ao req, aqui não
+        ip: ip ?? null,
+        userAgent: userAgent ?? null,
       },
     });
 
     logger.info(
-      `[AUDIT] Log registrado com sucesso; userId=${
-        userId ?? 'N/A'
-      }, action=${normalizedAction}`
+      `[AUDIT] Log registrado com sucesso; userId=${userId ?? 'N/A'}, action=${normalizedAction}`,
     );
   } catch (error) {
     logger.error(
       `[AUDIT] ❌ Falha ao registrar audit log: ${error.message}`,
-      { stack: error.stack }
+      { stack: error.stack },
     );
   }
 }

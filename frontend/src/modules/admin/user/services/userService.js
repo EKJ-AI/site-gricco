@@ -5,13 +5,26 @@ import api from '../../../api/axios';
  * @param {string} token
  * @param {number} page
  * @param {number} pageSize
+ * @param {boolean} includeInactive
  * @returns {Promise<object>}
  */
-export async function getUsers(token, page = 1, pageSize = 10) {
+export async function getUsers(
+  token,
+  page = 1,
+  pageSize = 10,
+  includeInactive = false,
+) {
   try {
-    console.log(`[API] 🔎 GET /users?page=${page}&pageSize=${pageSize}`);
-    const res = await api.get(`/api/users?page=${page}&pageSize=${pageSize}`, {
+    console.log(
+      `[API] 🔎 GET /users?page=${page}&pageSize=${pageSize}&includeInactive=${includeInactive}`,
+    );
+    const res = await api.get('/api/users', {
       headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page,
+        pageSize,
+        includeInactive,
+      },
     });
     console.log('[API] ✅ Usuários carregados');
     return res.data;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import '../../../shared/styles/Table.css';
 import '../../../shared/styles/Form.css';
 import api from '../../../api/axios';
@@ -19,12 +19,19 @@ export default function UsersPage() {
   const [password, setPassword] = useState('');
   const [profileId, setProfileId] = useState('');
   const [profiles, setProfiles] = useState([]);
+  const [isActive, setIsActive] = useState(true);
+
+  // all | active | inactive
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const res = await api.get('/api/users', {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params: {
+          status: statusFilter, // all | active | inactive
+        },
       });
       setUsers(res.data.data.items);
     } catch (err) {
@@ -36,7 +43,7 @@ export default function UsersPage() {
   const fetchProfiles = async () => {
     try {
       const res = await api.get('/api/profiles', {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       setProfiles(res.data.data.items);
     } catch {
@@ -45,26 +52,35 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
     fetchProfiles();
   }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [statusFilter]); // refaz quando mudar o filtro
 
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/api/users', {
-        name,
-        email,
-        password,
-        profileId
-      }, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
+      await api.post(
+        '/api/users',
+        {
+          name,
+          email,
+          password,
+          profileId,
+          isActive,
+        },
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
       setName('');
       setEmail('');
       setPassword('');
       setProfileId('');
+      setIsActive(true);
       fetchUsers();
     } catch {
       setError('Erro ao criar usuário.');
@@ -79,7 +95,7 @@ export default function UsersPage() {
     if (!window.confirm('Confirmar exclusão?')) return;
     try {
       await api.delete(`/api/users/${id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       fetchUsers();
     } catch {
@@ -98,33 +114,63 @@ export default function UsersPage() {
           type="text"
           placeholder="Nome"
           value={name}
-          onChange={e => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
           required
         />
         <input
           type="email"
           placeholder="Email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
         <input
           type="password"
           placeholder="Senha"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <select value={profileId} onChange={e => setProfileId(e.target.value)} required>
+        <select
+          value={profileId}
+          onChange={(e) => setProfileId(e.target.value)}
+          required
+        >
           <option value="">Selecione o perfil</option>
-          {profiles.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </select>
+
+        <label style={{ marginTop: 8 }}>
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+          />{' '}
+          Usuário ativo
+        </label>
+
         <button type="submit">Criar</button>
       </form>
 
       <h3>Lista de Usuários</h3>
+
+      {/* Filtro de status */}
+      <div style={{ marginBottom: 8 }}>
+        <label style={{ marginRight: 8 }}>Status:</label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All (active + inactive)</option>
+          <option value="active">Only active</option>
+          <option value="inactive">Only inactive</option>
+        </select>
+      </div>
+
       {loading ? (
         <p>Carregando...</p>
       ) : (
@@ -134,23 +180,55 @@ export default function UsersPage() {
               <th>Nome</th>
               <th>Email</th>
               <th>Perfil</th>
+              <th>Empresa</th>
+              <th>Estabelecimento</th>
+              <th>Status</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(u => (
-              <tr key={u.id}>
-                <td>{u.name}</td>
-                <td>{u.email}</td>
-                <td>{u.profile?.name}</td>
-                <td>
-                  <ActionButtons
-                    onEdit={() => handleEdit(u)}
-                    onDelete={() => handleDelete(u.id)}
-                  />
-                </td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              const isInactive = u.isActive === false;
+              const companyLabel = u.companyName || '—';
+              const est = u.establishment;
+
+              return (
+                <tr key={u.id}>
+                  <td>{u.name}</td>
+                  <td>{u.email}</td>
+                  <td>{u.profile?.name}</td>
+                  <td>{companyLabel}</td>
+                  <td>
+                    {est && est.id && est.companyId ? (
+                      <Link
+                        to={`/companies/${est.companyId}/establishments/${est.id}/employees`}
+                      >
+                        {est.nickname || 'Ver estabelecimento'}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td>
+                    {isInactive ? (
+                      <span style={{ color: '#b00', fontWeight: 500 }}>
+                        Inativo
+                      </span>
+                    ) : (
+                      <span style={{ color: '#0a6', fontWeight: 500 }}>
+                        Ativo
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <ActionButtons
+                      onEdit={() => handleEdit(u)}
+                      onDelete={() => handleDelete(u.id)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

@@ -1,4 +1,3 @@
-// src/modules/companies/documents/documentVersion.controller.js
 import fs from 'node:fs';
 import path from 'node:path';
 import prisma from '../../../../../prisma/client.js';
@@ -112,9 +111,9 @@ export async function uploadNew(req, res) {
     const establishmentIdFromDoc =
       doc.establishmentId || doc.establishment?.id || null;
 
-    // ❌ ANTES: refazíamos a checagem de permissão aqui com resolveEstablishmentAccess + canWriteDocs
-    // ✅ AGORA: confiamos no middleware ensureDocumentAccess({ mode: 'write' }) que já rodou antes.
-    // Apenas validamos se o doc pertence ao estabelecimento da rota.
+																										 
+    // ✅ Permissão já foi garantida por ensureDocumentAccess({ mode: 'write' })
+    // Aqui apenas garantimos se o doc pertence ao estabelecimento da rota.
 
     if (
       establishmentIdParam &&
@@ -147,6 +146,13 @@ export async function uploadNew(req, res) {
         .json({ success: false, message: 'File is required' });
     }
 
+    // 🔹 descrição do upload / o que mudou nesta versão
+    const rawChangeDesc = req.body?.changeDescription;
+    const changeDescription =
+      typeof rawChangeDesc === 'string' && rawChangeDesc.trim()
+        ? rawChangeDesc.trim().slice(0, 2000)
+        : null;
+
     const buf = fs.readFileSync(req.file.path);
     const sha = sha256OfBuffer(buf);
 
@@ -172,6 +178,7 @@ export async function uploadNew(req, res) {
         size: req.file.size,
         sha256: sha,
         uploadedByUserId: req.user?.id ?? null,
+        changeDescription, // 👈 grava descrição da mudança
       },
     });
 
@@ -559,6 +566,71 @@ export async function activateFromDocument(req, res) {
         .json({ success: false, ...mapped });
     }
     res
+      .status(500)
+      .json({ success: false, message: 'Internal error' });
+  }
+}
+
+/**
+ * Atualizar apenas metadados da versão (hoje: changeDescription).
+ * Rota sugerida:
+ * PUT /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/versions/:versionId
+ */
+export async function updateFromDocument(req, res) {
+  try {
+    const { documentId, versionId } = req.params;
+    const { changeDescription } = req.body || {};
+
+    const ver = await prisma.documentVersion.findUnique({
+      where: { id: versionId },
+      include: { document: true },
+    });
+
+    if (!ver || ver.documentId !== documentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Version does not belong to document',
+      });
+    }
+
+    const access = await resolveEstablishmentAccess(
+      req.user,
+      ver.document.establishmentId,
+    );
+    if (!canWriteDocs(access)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden (no write access to this document)',
+      });
+    }
+
+    const normalizedDescription =
+      typeof changeDescription === 'string' && changeDescription.trim()
+        ? changeDescription.trim().slice(0, 2000)
+        : null;
+
+    const updated = await prisma.documentVersion.update({
+      where: { id: versionId },
+      data: { changeDescription: normalizedDescription },
+    });
+
+    await registerAudit({
+      userId: req.user?.id,
+      action: 'UPDATE',
+      entity: 'DocumentVersion',
+      entityId: versionId,
+      details: 'UPDATE_DESCRIPTION',
+    });
+
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    const mapped = prismaErrorToHttp(err);
+    if (mapped) {
+      return res
+        .status(mapped.status)
+        .json({ success: false, ...mapped });
+    }
+    return res
       .status(500)
       .json({ success: false, message: 'Internal error' });
   }

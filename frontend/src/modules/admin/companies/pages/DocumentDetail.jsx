@@ -18,6 +18,8 @@ import {
   searchDocumentTypes,
   searchDocuments,
   buildDocumentFileUrl,
+  updateVersionDescription,
+  fetchDocumentVersionAccessLog, // 👈 NOVO
 } from '../api/documents';
 import AutocompleteSelect from '../components/AutocompleteSelect.jsx';
 import FileDropzone from '../components/FileDropzone.jsx';
@@ -39,6 +41,19 @@ export default function DocumentDetail() {
   // upload de versão do próprio documento
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploadDescription, setUploadDescription] = useState('');
+
+  // edição inline da descrição das versões
+  const [editingVersionId, setEditingVersionId] = useState(null);
+  const [editingDescription, setEditingDescription] = useState('');
+  const [savingDescription, setSavingDescription] = useState(false);
+
+  // 🔹 Modal de registros por VERSÃO
+  const [logModalOpen, setLogModalOpen] = useState(false);
+  const [logModalLoading, setLogModalLoading] = useState(false);
+  const [logModalError, setLogModalError] = useState('');
+  const [logModalVersion, setLogModalVersion] = useState(null);
+  const [logModalItems, setLogModalItems] = useState([]);
 
   // relacionados (evidências, anexos, etc.)
   const [evidences, setEvidences] = useState([]);
@@ -101,7 +116,7 @@ export default function DocumentDetail() {
         companyId,
         establishmentId,
         documentId,
-        { direction: 'all', relationType: 'EVIDENCE' }, // A->B e B->A
+        { direction: 'all', relationType: 'EVIDENCE' },
         accessToken
       );
       const data = res || {};
@@ -136,6 +151,10 @@ export default function DocumentDetail() {
     try {
       const fd = new FormData();
       fd.append('file', uploadFile);
+      if (uploadDescription.trim()) {
+        fd.append('changeDescription', uploadDescription.trim());
+      }
+
       await uploadVersion(
         companyId,
         establishmentId,
@@ -146,6 +165,7 @@ export default function DocumentDetail() {
 
       await Promise.all([fetchVersions(), fetchDocument()]);
       setUploadFile(null);
+      setUploadDescription('');
       setShowUpload(false);
     } catch (err) {
       console.error(err);
@@ -169,6 +189,45 @@ export default function DocumentDetail() {
     } catch (err) {
       console.error(err);
       setError('Failed to activate version');
+    }
+  }
+
+  // ---------- Editar descrição da versão (inline na tabela) ----------
+
+  function startEditingDescription(version) {
+    setEditingVersionId(version.id);
+    setEditingDescription(version.changeDescription || '');
+    setError('');
+  }
+
+  function cancelEditingDescription() {
+    setEditingVersionId(null);
+    setEditingDescription('');
+  }
+
+  async function handleSaveDescription(version) {
+    if (!version?.id) return;
+    if (editingVersionId && editingVersionId !== version.id) return;
+
+    setSavingDescription(true);
+    setError('');
+    try {
+      await updateVersionDescription(
+        companyId,
+        establishmentId,
+        documentId,
+        version.id,
+        { changeDescription: editingDescription },
+        accessToken
+      );
+      await fetchVersions();
+      setEditingVersionId(null);
+      setEditingDescription('');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update version description');
+    } finally {
+      setSavingDescription(false);
     }
   }
 
@@ -291,6 +350,45 @@ export default function DocumentDetail() {
       setDocumentModalLoading(false);
     }
   }, [accessToken, companyId, establishmentId, documentId, evidenceDocumentIds]);
+
+  // ---------- Modal de REGISTROS por VERSÃO ----------
+
+  const formatDateTime = (value) => {
+    if (!value) return '—';
+    try {
+      const d = new Date(value);
+      return d.toLocaleString('pt-BR');
+    } catch {
+      return String(value);
+    }
+  };
+
+  const openLogModal = async (version) => {
+    if (!accessToken || !companyId || !establishmentId || !documentId) return;
+
+    setLogModalVersion(version);
+    setLogModalOpen(true);
+    setLogModalLoading(true);
+    setLogModalError('');
+    setLogModalItems([]);
+
+    try {
+      const data = await fetchDocumentVersionAccessLog(
+        companyId,
+        establishmentId,
+        documentId,
+        version.id,
+        accessToken,
+      );
+
+      setLogModalItems(data?.items || []);
+    } catch (err) {
+      console.error('Failed to load access log for this version.', err);
+      setLogModalError('Failed to load access log for this version.');
+    } finally {
+      setLogModalLoading(false);
+    }
+  };
 
   // ---------- Criação rápida de documento relacionado (evidência) ----------
 
@@ -504,6 +602,19 @@ export default function DocumentDetail() {
                   <strong>{uploadFile.name}</strong> ({uploadFile.size} bytes)
                 </div>
               )}
+
+              <div style={{ marginBottom: 8 }}>
+                <label>
+                  Version description (what changed?)
+                  <textarea
+                    rows={3}
+                    placeholder="Ex.: Atualização de dados do ano, inclusão de novos riscos, ajuste de layout..."
+                    value={uploadDescription}
+                    onChange={(e) => setUploadDescription(e.target.value)}
+                  />
+                </label>
+              </div>
+
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="submit" disabled={uploading || !uploadFile}>
                   {uploading ? 'Uploading…' : 'Upload'}
@@ -515,6 +626,7 @@ export default function DocumentDetail() {
                     e.stopPropagation();
                     setShowUpload(false);
                     setUploadFile(null);
+                    setUploadDescription('');
                   }}
                 >
                   Cancel
@@ -529,6 +641,7 @@ export default function DocumentDetail() {
             <tr>
               <th>#</th>
               <th>Filename</th>
+              <th>Description</th>
               <th>Status</th>
               <th>Size</th>
               <th>SHA-256</th>
@@ -545,7 +658,7 @@ export default function DocumentDetail() {
                 documentId,
                 v.id,
                 'view',
-                accessToken, // token no URL, se sua helper suporta
+                accessToken, // extra arg ignorado pela helper
               );
               const downloadUrl = buildDocumentFileUrl(
                 companyId,
@@ -563,6 +676,27 @@ export default function DocumentDetail() {
                 >
                   <td>{v.versionNumber}</td>
                   <td>{v.filename}</td>
+                  <td
+                    style={{
+                      maxWidth: 260,
+                      whiteSpace:
+                        editingVersionId === v.id ? 'normal' : 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={v.changeDescription || ''}
+                  >
+                    {editingVersionId === v.id ? (
+                      <textarea
+                        rows={3}
+                        style={{ width: '100%' }}
+                        value={editingDescription}
+                        onChange={(e) => setEditingDescription(e.target.value)}
+                      />
+                    ) : (
+                      v.changeDescription || '—'
+                    )}
+                  </td>
                   <td>{v.versionStatus}</td>
                   <td>{v.size}</td>
                   <td
@@ -580,7 +714,18 @@ export default function DocumentDetail() {
                       ? new Date(v.activatedAt).toLocaleString()
                       : '—'}
                   </td>
-                  <td style={{ display: 'flex', gap: 8 }}>
+                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {/* Registros → document.log (por versão) */}
+                    <RequirePermission permissions={['document.log']}>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => openLogModal(v)}
+                      >
+                        Registros
+                      </button>
+                    </RequirePermission>
+
                     {/* View → document.view */}
                     <RequirePermission permissions={['document.view']}>
                       <a
@@ -612,6 +757,37 @@ export default function DocumentDetail() {
                           onClick={() => handleActivate(v.id)}
                         >
                           Activate
+                        </button>
+                      )}
+                    </RequirePermission>
+
+                    {/* Edit description → documentVersion.update */}
+                    <RequirePermission permissions={['documentVersion.update']}>
+                      {editingVersionId === v.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveDescription(v)}
+                            disabled={savingDescription}
+                          >
+                            {savingDescription ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={cancelEditingDescription}
+                            disabled={savingDescription}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => startEditingDescription(v)}
+                        >
+                          Edit description
                         </button>
                       )}
                     </RequirePermission>
@@ -864,14 +1040,15 @@ export default function DocumentDetail() {
             </thead>
             <tbody>
               {evidences.map((rel) => {
-                // Descobre qual é o "outro" doc na relação
                 const isFrom = rel.fromDocumentId === documentId;
                 const relatedDoc = isFrom ? rel.toDocument : rel.fromDocument;
 
                 return (
                   <tr key={rel.id}>
                     <td>{relatedDoc?.name || '—'}</td>
-                    <td>{relatedDoc?.type?.name || relatedDoc?.typeId || '—'}</td>
+                    <td>
+                      {relatedDoc?.type?.name || relatedDoc?.typeId || '—'}
+                    </td>
                     <td>{relatedDoc?.status || '—'}</td>
                     <td>
                       {relatedDoc?.currentVersion?.versionNumber != null
@@ -902,6 +1079,149 @@ export default function DocumentDetail() {
           </table>
         )}
       </section>
+
+      {/* ---------- Modal de REGISTROS por versão ---------- */}
+      {logModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1200,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 8,
+              padding: 16,
+              width: '90%',
+              maxWidth: 900,
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>
+                Access log
+                {logModalVersion
+                  ? ` — v${logModalVersion.versionNumber} (${logModalVersion.filename})`
+                  : ''}
+              </h3>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setLogModalOpen(false);
+                  setLogModalVersion(null);
+                  setLogModalItems([]);
+                  setLogModalError('');
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                marginBottom: 8,
+                color: '#555',
+              }}
+            >
+              Registros de visualização, download e upload desta VERSÃO do
+              documento. Útil para demonstrar rastreabilidade de quem acessou
+              este arquivo específico.
+            </div>
+
+            {logModalError && (
+              <div
+                style={{
+                  marginBottom: 8,
+                  padding: 8,
+                  borderRadius: 4,
+                  backgroundColor: '#ffe5e5',
+                  color: '#a00',
+                  fontSize: 13,
+                }}
+              >
+                {logModalError}
+              </div>
+            )}
+
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                border: '1px solid #eee',
+                borderRadius: 4,
+              }}
+            >
+              {logModalLoading ? (
+                <div style={{ padding: 12 }}>Loading access log…</div>
+              ) : (
+                <table className="data-table" style={{ margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>VIEW</th>
+                      <th>DOWNLOAD</th>
+                      <th>UPLOAD</th>
+                      <th>Total</th>
+                      <th>Last access</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logModalItems.map((item, idx) => {
+                      const name =
+                        item.userName ||
+                        (item.userId ? `User #${item.userId}` : 'Anonymous / Guest');
+                      const email = item.userEmail || '—';
+                      const viewCount = item.counts?.VIEW ?? 0;
+                      const downloadCount = item.counts?.DOWNLOAD ?? 0;
+                      const uploadCount = item.counts?.UPLOAD ?? 0;
+                      const total =
+                        item.total ??
+                        (viewCount + downloadCount + uploadCount);
+
+                      return (
+                        <tr key={item.userId ?? `row-${idx}`}>
+                          <td>{name}</td>
+                          <td>{email}</td>
+                          <td>{viewCount}</td>
+                          <td>{downloadCount}</td>
+                          <td>{uploadCount}</td>
+                          <td>{total}</td>
+                          <td>{formatDateTime(item.lastAccessAt)}</td>
+                        </tr>
+                      );
+                    })}
+                    {!logModalItems.length && !logModalLoading && (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center' }}>
+                          No access records for this version.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---------- Modal de tipos de documento ---------- */}
       {typeModalOpen && (

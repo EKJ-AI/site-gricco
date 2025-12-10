@@ -1,4 +1,3 @@
-// src/modules/companies/api/employees.js
 import api from '../../../../api/axios';
 
 /**
@@ -11,25 +10,39 @@ import api from '../../../../api/axios';
 // --- LISTAGEM LEGACY ---
 export async function listEmployeesByCompany(
   companyId,
-  { page = 1, pageSize = 20, q = '' } = {},
-  token
+  { page = 1, pageSize = 20, q = '', departmentId, status = 'all' } = {},
+  token,
 ) {
+  const params = { page, pageSize, q, status };
+
+  if (departmentId) {
+    params.departmentId = departmentId;
+  }
+
   const res = await api.get(`/api/employees/company/${companyId}`, {
-    params: { page, pageSize, q },
+    params,
     headers: { Authorization: `Bearer ${token}` },
   });
+
   return res.data?.data;
 }
 
 export async function listEmployeesByEstablishment(
   establishmentId,
-  { page = 1, pageSize = 20, q = '' } = {},
-  token
+  { page = 1, pageSize = 20, q = '', departmentId, status = 'all' } = {},
+  token,
 ) {
+  const params = { page, pageSize, q, status };
+
+  if (departmentId) {
+    params.departmentId = departmentId;
+  }
+
   const res = await api.get(`/api/employees/establishment/${establishmentId}`, {
-    params: { page, pageSize, q },
+    params,
     headers: { Authorization: `Bearer ${token}` },
   });
+
   return res.data?.data;
 }
 
@@ -59,7 +72,7 @@ export async function createEmployee(payload, token) {
       rest,
       {
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
     return res.data?.data;
   }
@@ -94,7 +107,7 @@ export async function createEmployeeByCompany(companyId, payload, token) {
 export async function createEmployeeByEstablishment(
   establishmentId,
   payload,
-  token
+  token,
 ) {
   // idem acima; se você quiser forçar por estabelecimento,
   // pode passar companyId também aqui mais pra frente.
@@ -110,16 +123,29 @@ export async function createEmployeeByEstablishment(
 export async function listEmployeesInEstablishment(
   companyId,
   establishmentId,
-  { page = 1, pageSize = 20, q = '' } = {},
-  token
+  {
+    page = 1,
+    pageSize = 20,
+    q = '',
+    departmentId,
+    status = 'all',
+  } = {},
+  token,
 ) {
+  const params = { page, pageSize, q, status };
+
+  if (departmentId) {
+    params.departmentId = departmentId;
+  }
+
   const res = await api.get(
     `/api/companies/${companyId}/establishments/${establishmentId}/employees`,
     {
-      params: { page, pageSize, q },
+      params,
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
+
   return res.data?.data;
 }
 
@@ -127,13 +153,13 @@ export async function getEmployeeInEstablishment(
   companyId,
   establishmentId,
   employeeId,
-  token
+  token,
 ) {
   const res = await api.get(
     `/api/companies/${companyId}/establishments/${establishmentId}/employees/${employeeId}`,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
   return res.data?.data;
 }
@@ -142,14 +168,14 @@ export async function createEmployeeInEstablishment(
   companyId,
   establishmentId,
   payload,
-  token
+  token,
 ) {
   const res = await api.post(
     `/api/companies/${companyId}/establishments/${establishmentId}/employees`,
     payload,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
   return res.data?.data;
 }
@@ -159,14 +185,14 @@ export async function updateEmployeeInEstablishment(
   establishmentId,
   employeeId,
   payload,
-  token
+  token,
 ) {
   const res = await api.put(
     `/api/companies/${companyId}/establishments/${establishmentId}/employees/${employeeId}`,
     payload,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
   return res.data?.data;
 }
@@ -175,13 +201,13 @@ export async function deleteEmployeeInEstablishment(
   companyId,
   establishmentId,
   employeeId,
-  token
+  token,
 ) {
   const res = await api.delete(
     `/api/companies/${companyId}/establishments/${establishmentId}/employees/${employeeId}`,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
   return res.data?.data;
 }
