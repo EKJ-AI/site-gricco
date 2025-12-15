@@ -38,6 +38,8 @@ import catalogRoutes from './modules/companies/establishments/catalogs/catalog.r
 // 🔹 Logs de acesso a documentos (VIEW / DOWNLOAD / UPLOAD)
 import documentAccessRoutes from './modules/companies/establishments/documents/documentAccess.routes.js';
 
+import blogRoutes from './modules/blog/blog.routes.js';
+
 import config from './config/index.js';
 import logger from './utils/logger.js';
 
@@ -168,6 +170,9 @@ app.use('/api/catalogs', catalogRoutes);
 
 // 🔹 Logs de acesso a documentos (VIEW/DOWNLOAD/UPLOAD + resumo por usuário)
 app.use('/api', documentAccessRoutes);
+
+// 🔹 Blog / CMS
+app.use('/api/blog', blogRoutes);
 
 // --------------- Swagger ---------------
 const swaggerDocument = JSON.parse(

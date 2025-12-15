@@ -165,6 +165,14 @@ const Sidebar = () => {
               <span>Tipos de Documentos</span>
             </NavLink>
           </RequirePermission>
+
+          {/* 🔥 Blog / Notícias */}
+          <RequirePermission permission="blog.post.read">
+            <NavLink to="/admin/blog/posts" className={linkClass}>
+              <span className="sidebar-link-icon file-icon" />
+              <span>Blog / Notícias</span>
+            </NavLink>
+          </RequirePermission>
         </div>
 
         {/* =========================

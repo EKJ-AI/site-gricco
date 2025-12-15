@@ -19,7 +19,16 @@ import UsersEditPage from './modules/admin/user/UsersEditPage';
 import HomePage from './modules/home/HomePage';
 import Etich from './modules/about/Etich';
 import Compliance from './modules/about/Compliance';
-import BlogPost from './modules/home/components/BlogPost';
+// import BlogPost from './modules/home/components/BlogPost';
+
+// 🔹 Páginas públicas de blog
+import BlogListPage from './modules/blog/BlogListPage.jsx';
+import BlogPostPage from './modules/blog/BlogPostPage.jsx';
+
+// 🔹 Admin - Blog
+import BlogList from './modules/admin/blog/pages/BlogList.jsx';
+import BlogForm from './modules/admin/blog/pages/BlogForm.jsx';
+
 import './shared/styles/theme.css';
 import './shared/i18n';
 import ServicePage from './modules/services/ServicesPage';
@@ -53,7 +62,7 @@ import DepartmentForm from './modules/admin/companies/pages/DepartmentForm.jsx';
 import EmployeeForm from './modules/admin/companies/pages/EmployeeForm.jsx';
 import DocumentForm from './modules/admin/companies/pages/DocumentForm.jsx';
 import DocumentVersionUpload from './modules/admin/companies/pages/DocumentVersionUpload.jsx';
-//import DocumentTypes from './modules/admin/companies/pages/DocumentTypes.jsx';
+// import DocumentTypes from './modules/admin/companies/pages/DocumentTypes.jsx';
 import DocumentTypeList from './modules/admin/companies/pages/DocumentTypeList.jsx';
 import DocumentTypeForm from './modules/admin/companies/pages/DocumentTypeForm.jsx';
 
@@ -79,7 +88,12 @@ function App() {
                    ========================= */}
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<HomePage />} />
-                  <Route path="/blog/:id" element={<BlogPost />} />
+                  {/* <Route path="/blog/:id" element={<BlogPost />} /> */}
+
+                  {/* Blog público */}
+                  <Route path="/blog" element={<BlogListPage />} />
+                  <Route path="/blog/:slug" element={<BlogPostPage />} />
+
                   <Route path="/login" element={<LoginPage />} />
                   <Route
                     path="/forgot-password"
@@ -135,6 +149,32 @@ function App() {
                     element={
                       <ProtectedRoute permissions={['translation.read']}>
                         <TranslateMissing />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Admin - Blog */}
+                  <Route
+                    path="/admin/blog/posts"
+                    element={
+                      <ProtectedRoute permissions={['blog.post.read']}>
+                        <BlogList />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/blog/posts/new"
+                    element={
+                      <ProtectedRoute permissions={['blog.post.create']}>
+                        <BlogForm mode="create" />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/blog/posts/:postId/edit"
+                    element={
+                      <ProtectedRoute permissions={['blog.post.update']}>
+                        <BlogForm mode="edit" />
                       </ProtectedRoute>
                     }
                   />

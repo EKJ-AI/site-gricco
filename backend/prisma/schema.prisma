@@ -57,6 +57,19 @@ enum DocumentAccessAction {
   UPLOAD
 }
 
+enum BlogPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BlogPostType {
+  NEWS
+  ARTICLE
+  PAGE
+}
+
 /**
  * ======================
  * Core (auth / rbac / audit)
@@ -86,6 +99,10 @@ model User {
   companiesCreated Company[] @relation("UserCompaniesCreated")
 
   accessLogs DocumentAccessLog[] @relation("UserDocumentAccessLogs")
+
+  // NOVO: posts de blog
+  blogPostsAuthored BlogPost[] @relation("BlogPostsAuthor")
+  blogPostsEdited   BlogPost[] @relation("BlogPostsLastEditor")
 
   isActive Boolean @default(true)
 
@@ -318,7 +335,7 @@ model Employee {
   dismissedAt     DateTime?
   bondType        String?
   jobTitle        String? // já existia, usado como cargo/função
-  cboId           String?     // 👈 SEM @db.Uuid aqui
+  cboId           String? // 👈 SEM @db.Uuid aqui
   departmentId    String?
   activityId      String?
   email           String?
@@ -471,6 +488,23 @@ model DocumentVersion {
   @@index([versionStatus])
 }
 
+model DocumentView {
+  id                String   @id @default(cuid())
+  documentId        String
+  documentVersionId String
+  userId            Int?
+  viewedAt          DateTime @default(now())
+  ip                String?  @db.Inet
+  userAgent         String?
+
+  document Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version  DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  user     User?           @relation(fields: [userId], references: [id])
+
+  @@index([documentId, documentVersionId, viewedAt])
+  @@index([userId, viewedAt])
+}
+
 model DocumentAccessLog {
   id                String  @id @default(cuid())
   documentId        String
@@ -490,4 +524,104 @@ model DocumentAccessLog {
   @@index([documentId, createdAt])
   @@index([documentVersionId])
   @@index([userId])
+}
+
+model BlogPost {
+  id     String         @id @default(cuid())
+  type   BlogPostType   @default(ARTICLE)
+  status BlogPostStatus @default(DRAFT)
+
+  title         String
+  slug          String
+  summary       String?
+  content       String? // Markdown/HTML/texto
+  coverImageUrl String?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Destaques / métricas simples
+  isFeatured         Boolean @default(false)
+  readingTimeMinutes Int?
+  viewCount          Int     @default(0)
+
+  // Escopo GLOBAL (sem company/establishment)
+  // 🔥 Nada de companyId / establishmentId aqui
+
+  // Auditoria
+  authorId     Int
+  lastEditorId Int?
+
+  publishedAt DateTime?
+  scheduledAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  author     User  @relation("BlogPostsAuthor", fields: [authorId], references: [id])
+  lastEditor User? @relation("BlogPostsLastEditor", fields: [lastEditorId], references: [id])
+
+  categories BlogPostCategory[]
+  tags       BlogPostTag[]
+
+  @@unique([slug])
+  @@index([status, type, publishedAt])
+}
+
+model BlogCategory {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  posts BlogPostCategory[]
+
+  @@unique([slug])
+  @@index([name])
+}
+
+model BlogPostCategory {
+  id         String @id @default(cuid())
+  postId     String
+  categoryId String
+
+  post     BlogPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, categoryId])
+  @@index([categoryId])
+}
+
+model BlogTag {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  posts BlogPostTag[]
+
+  @@unique([slug])
+  @@index([name])
+}
+
+model BlogPostTag {
+  id     String @id @default(cuid())
+  postId String
+  tagId  String
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  BlogTag  @relation(fields: [tagId], references: [id])
+
+  @@unique([postId, tagId])
+  @@index([tagId])
 }

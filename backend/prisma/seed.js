@@ -127,6 +127,13 @@ const PERMISSIONS = [
   'training.create',
   'training.update',
   'training.delete',
+
+  // Blog / CMS
+  'blog.post.read',
+  'blog.post.create',
+  'blog.post.update',
+  'blog.post.delete',
+  'blog.post.publish',
 ];
 
 // ------------------------------------------------------
@@ -213,6 +220,13 @@ const PROFILE_CONFIG = [
 
       'report.read',
       'training.read',
+
+      // Blog / CMS
+      'blog.post.read',
+      'blog.post.create',
+      'blog.post.update',
+      'blog.post.delete',
+      'blog.post.publish',
     ],
   },
   {
@@ -252,6 +266,12 @@ const PROFILE_CONFIG = [
       'inspection.read',
       'report.read',
       'training.read',
+
+      // Blog / CMS
+      'blog.post.read',
+      'blog.post.create',
+      'blog.post.update',
+      'blog.post.publish',
     ],
   },
   {
@@ -280,6 +300,9 @@ const PROFILE_CONFIG = [
       'inspection.read',
       'report.read',
       'training.read',
+
+      // Blog / CMS
+      'blog.post.read',
     ],
   },
   {
@@ -331,6 +354,9 @@ const PROFILE_CONFIG = [
 
       // leitura de catálogos (ex.: CBO, CNAE, etc.)
       'catalog.read',
+
+       // Blog / CMS – pode ler posts públicos
+      'blog.post.read',
     ],
   },
   {
@@ -351,6 +377,9 @@ const PROFILE_CONFIG = [
 
       // leitura de catálogos (ex.: CBO, CNAE, etc.)
       'catalog.read',
+
+       // Blog / CMS – pode ler posts públicos
+      'blog.post.read',
     ],
   },
 ];
