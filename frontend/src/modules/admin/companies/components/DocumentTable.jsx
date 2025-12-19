@@ -2,10 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import { useAuth } from '../../../auth/contexts/AuthContext';
-import {
-  buildDocumentFileUrl,
-  fetchDocumentAccessLog,
-} from '../api/documents';
+import { buildDocumentFileUrl, fetchDocumentAccessLog } from '../api/documents';
 
 function getCategoryLabel(type) {
   if (!type?.kind) return '-';
@@ -13,6 +10,16 @@ function getCategoryLabel(type) {
   if (type.kind === 'EVIDENCE') return 'Evidência / Registro';
   return '-';
 }
+
+const COLS = {
+  NAME: 'name',
+  TYPE: 'type',
+  CATEGORY: 'category',
+  STATUS: 'status',
+  VERSION: 'version',
+  EVIDENCES: 'evidences',
+  FILE: 'file',
+};
 
 export default function DocumentTable({ rows = [], onDelete }) {
   const { companyId, establishmentId } = useParams();
@@ -26,6 +33,68 @@ export default function DocumentTable({ rows = [], onDelete }) {
   const [versionFilter, setVersionFilter] = useState('');
   const [evidencesFilter, setEvidencesFilter] = useState('');
   const [fileFilter, setFileFilter] = useState(''); // '', 'with', 'without'
+
+  // ----- controle de UI dos filtros -----
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [openFilterCols, setOpenFilterCols] = useState(() => ({
+    [COLS.NAME]: false,
+    [COLS.TYPE]: false,
+    [COLS.CATEGORY]: false,
+    [COLS.STATUS]: false,
+    [COLS.VERSION]: false,
+    [COLS.EVIDENCES]: false,
+    [COLS.FILE]: false,
+  }));
+
+  const toggleColFilter = (colKey) => {
+    setFiltersVisible(true); // ao clicar no TH, garante que a linha de filtros aparece
+    setOpenFilterCols((prev) => ({ ...prev, [colKey]: !prev[colKey] }));
+  };
+
+  const showAllFilters = () => {
+    setFiltersVisible(true);
+    setOpenFilterCols({
+      [COLS.NAME]: true,
+      [COLS.TYPE]: true,
+      [COLS.CATEGORY]: true,
+      [COLS.STATUS]: true,
+      [COLS.VERSION]: true,
+      [COLS.EVIDENCES]: true,
+      [COLS.FILE]: true,
+    });
+  };
+
+  const hideAllFilters = () => {
+    setFiltersVisible(false);
+    setOpenFilterCols({
+      [COLS.NAME]: false,
+      [COLS.TYPE]: false,
+      [COLS.CATEGORY]: false,
+      [COLS.STATUS]: false,
+      [COLS.VERSION]: false,
+      [COLS.EVIDENCES]: false,
+      [COLS.FILE]: false,
+    });
+  };
+
+  const clearAllFilters = () => {
+    setNameFilter('');
+    setTypeFilter('');
+    setCategoryFilter('');
+    setStatusFilter('');
+    setVersionFilter('');
+    setEvidencesFilter('');
+    setFileFilter('');
+  };
+
+  const hasAnyFilter =
+    !!nameFilter ||
+    !!typeFilter ||
+    !!categoryFilter ||
+    !!statusFilter ||
+    !!versionFilter ||
+    !!evidencesFilter ||
+    !!fileFilter;
 
   // ----- Modal de registros (logs de acesso) -----
   const [logModalOpen, setLogModalOpen] = useState(false);
@@ -47,38 +116,23 @@ export default function DocumentTable({ rows = [], onDelete }) {
           ? `v${d.currentVersion.versionNumber}`
           : '-';
       const evidencesCount = d.evidencesCount ?? 0;
-      const hasPublishedFile =
-        !!d.currentVersion && !!d.currentVersion.storagePath;
+      const hasPublishedFile = !!d.currentVersion && !!d.currentVersion.storagePath;
 
       if (nameFilter && !name.includes(norm(nameFilter))) return false;
       if (typeFilter && !typeName.includes(norm(typeFilter))) return false;
-      if (
-        categoryFilter &&
-        !categoryLabel.includes(norm(categoryFilter))
-      ) {
-        return false;
-      }
+      if (categoryFilter && !categoryLabel.includes(norm(categoryFilter))) return false;
       if (statusFilter && status !== statusFilter) return false;
-      if (
-        versionFilter &&
-        !versionLabel.toLowerCase().includes(norm(versionFilter))
-      ) {
-        return false;
-      }
+      if (versionFilter && !versionLabel.toLowerCase().includes(norm(versionFilter))) return false;
+
       if (evidencesFilter) {
         const parsed = parseInt(evidencesFilter, 10);
         if (!Number.isNaN(parsed)) {
           if (evidencesCount !== parsed) return false;
         } else {
-          if (
-            !String(evidencesCount)
-              .toLowerCase()
-              .includes(norm(evidencesFilter))
-          ) {
-            return false;
-          }
+          if (!String(evidencesCount).toLowerCase().includes(norm(evidencesFilter))) return false;
         }
       }
+
       if (fileFilter === 'with' && !hasPublishedFile) return false;
       if (fileFilter === 'without' && hasPublishedFile) return false;
 
@@ -110,7 +164,7 @@ export default function DocumentTable({ rows = [], onDelete }) {
         companyId,
         establishmentId,
         doc.id,
-        accessToken,
+        accessToken
       );
 
       setLogModalItems(data.items || []);
@@ -125,112 +179,183 @@ export default function DocumentTable({ rows = [], onDelete }) {
   const formatDateTime = (value) => {
     if (!value) return '—';
     try {
-      const d = new Date(value);
-      // ajusta para o padrão mais amigável pt-BR
-      return d.toLocaleString('pt-BR');
+      return new Date(value).toLocaleString('pt-BR');
     } catch {
       return String(value);
     }
   };
 
+  const HeaderCell = ({ colKey, label, className }) => {
+    const active = !!openFilterCols[colKey];
+    return (
+      <th
+        className={className}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+        title="Clique para abrir/fechar o filtro desta coluna"
+        onClick={() => toggleColFilter(colKey)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{label}</span>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>
+            {active ? '▾' : '▸'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   return (
     <>
+      {/* Barra de ações dos filtros */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap',
+          marginTop: 8,
+        }}
+      >
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => (filtersVisible ? hideAllFilters() : showAllFilters())}
+        >
+          {filtersVisible ? 'Ocultar filtros' : 'Filtros'}
+        </button>
+
+        <button
+          type="button"
+          className="secondary"
+          onClick={clearAllFilters}
+          disabled={!hasAnyFilter}
+          title="Limpa todos os filtros"
+        >
+          Limpar
+        </button>
+      </div>
+
       <table className="data-table" style={{ marginTop: 8 }}>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Category</th>
-            <th>Status</th>
-            <th>Current Version</th>
-            <th>Evidences</th>
-            <th>Published file</th>
-            <th></th>
+            <HeaderCell colKey={COLS.NAME} label="Name" className="mostrar-mobile" />
+            <HeaderCell colKey={COLS.TYPE} label="Type" className="mostrar-mobile" />
+            <HeaderCell colKey={COLS.CATEGORY} label="Category" />
+            <HeaderCell colKey={COLS.STATUS} label="Status" />
+            <HeaderCell colKey={COLS.VERSION} label="Current Version" />
+            <HeaderCell colKey={COLS.EVIDENCES} label="Evidences" />
+            <HeaderCell colKey={COLS.FILE} label="Published file" />
+            <th className="mostrar-mobile"></th>
           </tr>
 
-          {/* linha de filtros por coluna */}
-          <tr>
-            {/* Name */}
-            <th>
-              <input
-                style={{ width: '100%' }}
-                placeholder="Filter name..."
-                value={nameFilter}
-                onChange={(e) => setNameFilter(e.target.value)}
-              />
-            </th>
+          {/* linha de filtros por coluna (agora dinâmica) */}
+          {filtersVisible && (
+            <tr>
+              {/* Name */}
+              <th>
+                {openFilterCols[COLS.NAME] && (
+                  <input
+                    style={{ width: '100%' }}
+                    placeholder="Filter name..."
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
+              </th>
 
-            {/* Type */}
-            <th>
-              <input
-                style={{ width: '100%' }}
-                placeholder="Filter type..."
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              />
-            </th>
+              {/* Type */}
+              <th>
+                {openFilterCols[COLS.TYPE] && (
+                  <input
+                    style={{ width: '100%' }}
+                    placeholder="Filter type..."
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
+              </th>
 
-            {/* Category */}
-            <th>
-              <input
-                style={{ width: '100%' }}
-                placeholder="Filter category..."
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              />
-            </th>
+              {/* Category */}
+              <th>
+                {openFilterCols[COLS.CATEGORY] && (
+                  <input
+                    style={{ width: '100%' }}
+                    placeholder="Filter category..."
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
+              </th>
 
-            {/* Status */}
-            <th>
-              <select
-                style={{ width: '100%' }}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="DRAFT">DRAFT</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
-            </th>
+              {/* Status */}
+              <th>
+                {openFilterCols[COLS.STATUS] && (
+                  <select
+                    style={{ width: '100%' }}
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">All</option>
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                )}
+              </th>
 
-            {/* Current Version */}
-            <th>
-              <input
-                style={{ width: '100%' }}
-                placeholder="e.g. v1, v2..."
-                value={versionFilter}
-                onChange={(e) => setVersionFilter(e.target.value)}
-              />
-            </th>
+              {/* Current Version */}
+              <th>
+                {openFilterCols[COLS.VERSION] && (
+                  <input
+                    style={{ width: '100%' }}
+                    placeholder="e.g. v1, v2..."
+                    value={versionFilter}
+                    onChange={(e) => setVersionFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
+              </th>
 
-            {/* Evidences */}
-            <th>
-              <input
-                style={{ width: '100%' }}
-                placeholder="Qty..."
-                value={evidencesFilter}
-                onChange={(e) => setEvidencesFilter(e.target.value)}
-              />
-            </th>
+              {/* Evidences */}
+              <th>
+                {openFilterCols[COLS.EVIDENCES] && (
+                  <input
+                    style={{ width: '100%' }}
+                    placeholder="Qty..."
+                    value={evidencesFilter}
+                    onChange={(e) => setEvidencesFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
+              </th>
 
-            {/* Published file (com/sem arquivo) */}
-            <th>
-              <select
-                style={{ width: '100%' }}
-                value={fileFilter}
-                onChange={(e) => setFileFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="with">With file</option>
-                <option value="without">No file</option>
-              </select>
-            </th>
+              {/* Published file (com/sem arquivo) */}
+              <th>
+                {openFilterCols[COLS.FILE] && (
+                  <select
+                    style={{ width: '100%' }}
+                    value={fileFilter}
+                    onChange={(e) => setFileFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">All</option>
+                    <option value="with">With file</option>
+                    <option value="without">No file</option>
+                  </select>
+                )}
+              </th>
 
-            {/* Ações */}
-            <th></th>
-          </tr>
+              {/* Ações */}
+              <th></th>
+            </tr>
+          )}
         </thead>
+
         <tbody>
           {filteredRows.map((d) => {
             const categoryLabel = getCategoryLabel(d.type);
@@ -239,8 +364,7 @@ export default function DocumentTable({ rows = [], onDelete }) {
                 ? `v${d.currentVersion.versionNumber}`
                 : '-';
 
-            const hasPublishedFile =
-              !!d.currentVersion && !!d.currentVersion.storagePath;
+            const hasPublishedFile = !!d.currentVersion && !!d.currentVersion.storagePath;
 
             const publishedViewUrl =
               hasPublishedFile &&
@@ -254,53 +378,35 @@ export default function DocumentTable({ rows = [], onDelete }) {
                     d.id,
                     d.currentVersion.id,
                     'view',
-                    accessToken,
+                    accessToken
                   )
                 : null;
 
             return (
               <tr key={d.id}>
-                <td>
-                  <Link
-                    to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}`}
-                  >
+                <td className="mostrar-mobile">
+                  <Link to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}`}>
                     {d.name}
                   </Link>
                 </td>
-                <td>{d.type?.name || '-'}</td>
+                <td className="mostrar-mobile">{d.type?.name || '-'}</td>
                 <td>{categoryLabel}</td>
                 <td>{d.status}</td>
                 <td>{versionLabel}</td>
                 <td>{d.evidencesCount ?? 0}</td>
 
                 {/* Published file + botão Registros */}
-                <td>
+                <td className="mostrar-mobile">
                   {hasPublishedFile && publishedViewUrl ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: 8,
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      {/* 📌 Botão "Registros" – só quem tem document.log vê */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <RequirePermission permissions={['document.log']}>
-                        <button
-                          type="button"
-                          onClick={() => openLogModal(d)}
-                        >
+                        <button type="button" onClick={() => openLogModal(d)}>
                           Registros
                         </button>
                       </RequirePermission>
 
-                      {/* Botão/Link "View" – document.view */}
                       <RequirePermission permissions={['document.view']}>
-                        <a
-                          href={publishedViewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                        <a href={publishedViewUrl} target="_blank" rel="noreferrer">
                           View
                         </a>
                       </RequirePermission>
@@ -311,7 +417,6 @@ export default function DocumentTable({ rows = [], onDelete }) {
                 </td>
 
                 <td style={{ textAlign: 'right' }}>
-                  {/* Editar documento → precisa document.update */}
                   <RequirePermission permissions={['document.update']}>
                     <Link
                       style={{ marginRight: 8 }}
@@ -321,22 +426,19 @@ export default function DocumentTable({ rows = [], onDelete }) {
                     </Link>
                   </RequirePermission>
 
-                  {/* Upload de nova versão → precisa documentVersion.create */}
+                  {/* ✅ Upload Version agora só redireciona para o detalhe do documento */}
                   <RequirePermission permissions={['documentVersion.create']}>
                     <Link
                       style={{ marginRight: 8 }}
-                      to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}/versions/new`}
+                      to={`/companies/${companyId}/establishments/${establishmentId}/documents/${d.id}`}
+                      title="Abre o documento (o upload de nova versão já fica disponível lá)"
                     >
                       Upload Version
                     </Link>
                   </RequirePermission>
 
-                  {/* Delete → precisa document.delete */}
                   <RequirePermission permissions={['document.delete']}>
-                    <button
-                      type="button"
-                      onClick={() => onDelete?.(d.id)}
-                    >
+                    <button type="button" onClick={() => onDelete?.(d.id)}>
                       Delete
                     </button>
                   </RequirePermission>
@@ -344,6 +446,7 @@ export default function DocumentTable({ rows = [], onDelete }) {
               </tr>
             );
           })}
+
           {!filteredRows.length && (
             <tr>
               <td colSpan={8} style={{ textAlign: 'center' }}>
@@ -404,16 +507,8 @@ export default function DocumentTable({ rows = [], onDelete }) {
               </button>
             </div>
 
-            <div
-              style={{
-                fontSize: 13,
-                marginBottom: 8,
-                color: '#555',
-              }}
-            >
-              Registros de visualização, download e upload associados a este
-              documento. Útil para demonstrar rastreabilidade de quem acessou
-              os documentos de SST.
+            <div style={{ fontSize: 13, marginBottom: 8, color: '#555' }}>
+              Registros de visualização, download e upload associados a este documento.
             </div>
 
             {logModalError && (
@@ -431,14 +526,7 @@ export default function DocumentTable({ rows = [], onDelete }) {
               </div>
             )}
 
-            <div
-              style={{
-                flex: 1,
-                overflow: 'auto',
-                border: '1px solid #eee',
-                borderRadius: 4,
-              }}
-            >
+            <div style={{ flex: 1, overflow: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
               {logModalLoading ? (
                 <div style={{ padding: 12 }}>Loading access log…</div>
               ) : (

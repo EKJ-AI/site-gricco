@@ -1,5 +1,8 @@
-/* styles.css — GRICCO Compliance Policy (responsivo e pronto para impressão) */
-:root{
+/* Compliance.css — GRICCO Compliance Policy (responsivo e pronto para impressão)
+   Escopo: SOMENTE dentro de .compliance-page
+*/
+
+.compliance-page{
   --bg: #0f172a;
   --card: #ffffff;
   --ink: #0b1324;
@@ -9,35 +12,66 @@
   --shadow: 0 8px 24px rgba(2,6,23,0.08);
 }
 
-*{box-sizing:border-box}
-/* html{scroll-behavior:smooth} */
-/* body{
-  margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
-  color:var(--ink);
-  background:linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-} */
-
-/* .container{
-  max-width: 1100px; 
-  margin: 0 auto; 
-  padding: 0px
-} */
-
-.container{
-    /* padding: 1rem 0 3rem; */
-    padding: 0px !important;
+/* Reset somente dentro da página */
+.compliance-page,
+.compliance-page *{
+  box-sizing: border-box;
 }
 
-.container ul, .container ol{
+.compliance-page p{
+  font-size: inherit;
+}
+
+/* Container */
+.compliance-page .container{
+  padding: 0px !important;
+}
+
+.compliance-page .container ul,
+.compliance-page .container ol{
   margin: .5rem 0 .75rem 1.25rem;
 }
 
-.site-header{
-  padding-top: 32px;
+/* Header / Footer do documento (se vierem no HTML parseado) */
+.compliance-page .site-header{
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #0f172a;
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  padding: 0px 20px;
   display: none;
 }
-.badge{
+
+.compliance-page .header-inner{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 0;
+}
+
+.compliance-page .brand-title{
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.compliance-page .brand-subtitle{
+  display: block;
+  font-size: .8rem;
+  opacity: .8;
+}
+
+.compliance-page .site-footer{
+  color:#0b1324;
+  opacity:.9;
+  padding-bottom: 48px;
+  font-size:.95rem;
+  display: none;
+}
+
+/* Badge / Meta */
+.compliance-page .badge{
   display:inline-block;
   background: var(--ink);
   color: #fff;
@@ -46,77 +80,219 @@
   font-weight: 700;
   letter-spacing:.06em;
 }
-/* .hero h1{
-  margin: 12px 0 6px;
-  line-height:1.2;
-  font-size: clamp(1.6rem, 2.2vw + 1.2rem, 2.6rem);
-} */
-.org{color:var(--muted); margin:0 0 12px}
-.meta{
-  display:flex; flex-wrap:wrap; gap:12px; padding:0; margin:0;
+
+.compliance-page .org{
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.compliance-page .meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  padding:0;
+  margin:0;
   list-style:none;
-}
-.meta li{background:#e2e8f0; padding:6px 10px; border-radius:10px; font-size:.95rem}
-
-.toc{
-  background:var(--card);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 40px;
-  /* margin: 18px 0 28px; */
-}
-.toc h2{margin-top:0}
-.toc ol{margin:0; padding-left: 18px}
-.toc a{color: var(--brand); text-decoration: none}
-.toc a:hover{text-decoration: underline}
-
-.card{
-  /* background: var(--card); */
-  border-radius: var(--radius);
-  /* box-shadow: var(--shadow); */
-  padding: clamp(16px, 1.6vw + 10px, 28px);
-  margin: 18px 0;
-}
-.card h2{margin-top:0; font-size: clamp(1.25rem, 1.4vw + 1rem, 1.8rem)}
-.card h3{margin-top: 1.2em}
-
-.table-wrap{
-  overflow-x:auto;
-  border-radius: 12px;
-  border:1px solid #e2e8f0;
-}
-table{
-  width:100%;
-  border-collapse: collapse;
-  background:#fff;
-}
-thead th{
-  background:#f1f5f9;
-  text-align:left;
-  padding:12px;
-  font-weight:700;
-}
-tbody td{
-  border-top:1px solid #e2e8f0;
-  padding:12px;
-  vertical-align: top;
+  color: #334155;
 }
 
-.site-footer{
-  color:#0b1324;
-  opacity:.9;
-  padding-bottom: 48px;
+.compliance-page .meta li{
+  background:#e2e8f0;
+  padding:6px 10px;
+  border-radius:10px;
   font-size:.95rem;
+}
+
+/* TOC */
+.compliance-page #menu-checkbox{
   display: none;
 }
 
-/* Acessibilidade */
-a:focus{outline: 3px solid var(--brand); outline-offset: 2px}
+.compliance-page .menu-toggle{
+  display: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+}
 
-/* Impressão limpa */
+.compliance-page .toc{
+  top: 3.2rem;
+  background: var(--card);
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 40px;
+}
+
+.compliance-page .toc-inner{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: .75rem 1rem;
+}
+
+.compliance-page .toc h2{
+  margin-top: 0;
+  font-size: 1rem;
+  margin: .25rem 0 .5rem;
+  color: #334155;
+}
+
+.compliance-page .toc ol{
+  margin: 0;
+  padding-left: 18px;
+}
+
+.compliance-page .toc a{
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.compliance-page .toc a:hover{
+  text-decoration: underline;
+}
+
+/* Cards (se vier no HTML parseado) */
+.compliance-page .card{
+  border-radius: var(--radius);
+  padding: clamp(16px, 1.6vw + 10px, 28px);
+  margin: 18px 0;
+}
+
+.compliance-page .card h2{
+  margin-top: 0;
+  font-size: clamp(1.25rem, 1.4vw + 1rem, 1.8rem);
+}
+
+.compliance-page .card h3{
+  margin-top: 1.2em;
+}
+
+/* Conteúdo (se vier no HTML parseado) */
+.compliance-page .doc-header{
+  padding: 1.5rem 0 0;
+}
+
+.compliance-page .doc-header h1{
+  margin: .25rem 0;
+  font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+}
+
+.compliance-page .content{
+  padding: clamp(16px, 1.6vw + 10px, 28px) !important;
+}
+
+.compliance-page .content h2{
+  margin-top: 2rem;
+  border-top: 2px solid #e2e8f0;
+  padding-top: 1rem;
+}
+
+.compliance-page .content h3{
+  margin-top: 1.25rem;
+  color: #0f172a;
+}
+
+.compliance-page .content h4{
+  margin-top: 1rem;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.compliance-page .content p{
+  margin: .5rem 0;
+}
+
+.compliance-page .content ul,
+.compliance-page .content ol{
+  margin: .5rem 0 .75rem 1.25rem;
+}
+
+.compliance-page .content article{
+  padding: clamp(16px, 1.6vw + 10px, 28px);
+}
+
+.compliance-page #valores-fundamentais{
+  max-width: 100%;
+  display: grid;
+  overflow: auto;
+}
+
+/* Tabelas */
+.compliance-page .table-wrap{
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: .75rem;
+}
+
+.compliance-page table{
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  min-width: 640px;
+}
+
+.compliance-page thead th{
+  background:#f1f5f9;
+  text-align:left;
+  padding: .75rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.compliance-page tbody td{
+  padding: .75rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+/* Responsive */
+@media (max-width: 840px){
+  .compliance-page .menu-toggle{
+    display: block;
+  }
+
+  .compliance-page .toc{
+    position: relative;
+    top: 0;
+  }
+
+  .compliance-page #menu-checkbox:checked + .toc{
+    display: block;
+  }
+
+  .compliance-page .table-wrap{
+    border-radius: .5rem;
+  }
+}
+
+/* Print-friendly (somente nesta página) */
 @media print{
-  body{background:#fff}
-  .card, .toc{box-shadow:none; border:1px solid #e5e7eb}
-  .badge{background:#000}
-  .container{max-width: none}
+  .compliance-page .site-header,
+  .compliance-page .toc,
+  .compliance-page .site-footer{
+    display: none !important;
+  }
+
+  .compliance-page{
+    background: #fff;
+    color: #000;
+  }
+
+  .compliance-page .content h2{
+    border-top: none;
+  }
+
+  .compliance-page .card,
+  .compliance-page .toc{
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+
+  .compliance-page .badge{
+    background: #000;
+  }
+
+  .compliance-page .container{
+    max-width: none;
+  }
 }

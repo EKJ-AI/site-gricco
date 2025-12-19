@@ -17,6 +17,7 @@ import Employees from './pages/Employees.jsx';
 import EmployeeForm from './pages/EmployeeForm.jsx';
 
 // 👇 NOVO: dashboard do estabelecimento
+import EstablishmentAbout from './pages/EstablishmentAbout.jsx';
 import EstablishmentDashboard from './pages/EstablishmentDashboard.jsx';
 
 // Helper to mount inside your <Routes>
@@ -53,6 +54,7 @@ export default function companiesRoutes() {
         <Route index element={<Navigate to="dashboard" replace />} />
 
         {/* 👇 nova rota de dashboard */}
+        <Route path="about" element={<EstablishmentAbout />} />
         <Route path="dashboard" element={<EstablishmentDashboard />} />
 
         <Route path="documents" element={<Documents />} />

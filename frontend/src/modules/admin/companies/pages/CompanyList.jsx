@@ -5,6 +5,7 @@ import Pagination from '../components/Pagination.jsx';
 import { listCompanies, deleteCompany } from '../api/companies.js';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
+import "../styles/companies.css";
 
 export default function CompanyList() {
   const { accessToken } = useAuth();
@@ -62,7 +63,7 @@ export default function CompanyList() {
   return (
     <div className="container">
       <div className="page-header">
-        <h2>Companies</h2>
+        {/* <h2>Companies</h2>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             placeholder="Search..."
@@ -84,7 +85,7 @@ export default function CompanyList() {
               New Company
             </Link>
           </RequirePermission>
-        </div>
+        </div> */}
       </div>
 
       {err && <div className="error-message">{err}</div>}
@@ -92,10 +93,13 @@ export default function CompanyList() {
         <div>Loading...</div>
       ) : (
         <>
-          <div className="grid">
+          <div className="cards">
             {data.items.map((c) => (
               <CompanyCard key={c.id} item={c} onDelete={handleDelete} />
             ))}
+            <RequirePermission permission="company.create">
+              <Link to="/companies/new" className="card-new">+</Link>
+            </RequirePermission>
           </div>
           <Pagination
             page={data.page}

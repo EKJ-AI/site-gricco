@@ -98,7 +98,7 @@ export default function CompanyView() {
           )}
         </h2>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input
+          {/* <input
             placeholder="Search establishments..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -111,40 +111,31 @@ export default function CompanyView() {
           >
             <option value="all">All (active + inactive)</option>
             <option value="active">Only active</option>
-          </select>
+          </select> */}
 
-          <RequirePermission permission="company.update">
+          {/* <RequirePermission permission="company.update">
             <Link
               to={`/companies/${companyId}/edit`}
               className="secondary"
             >
               Edit Company
             </Link>
-          </RequirePermission>
+          </RequirePermission> */}
 
-          <RequirePermission permission="establishment.create">
+          {/* <RequirePermission permission="establishment.create">
             <Link
               to={`/companies/${companyId}/establishments/new`}
               className="primary"
             >
               New Establishment
             </Link>
-          </RequirePermission>
-
-          <RequirePermission permission="employee.read">
-            <Link
-              to={`/companies/${companyId}/employees`}
-              className="secondary"
-            >
-              Employees
-            </Link>
-          </RequirePermission>
+          </RequirePermission> */}
         </div>
       </div>
 
       {err && <div className="error-message">{err}</div>}
 
-      <div className="grid">
+      <div className="cards">
         {data.items.map((e) => (
           <EstablishmentCard
             key={e.id}
@@ -152,6 +143,13 @@ export default function CompanyView() {
             onDelete={handleDelete}
           />
         ))}
+        <RequirePermission permission="establishment.create">
+          <Link
+            to={`/companies/${companyId}/establishments/new`}
+            className="card-new">
+              +
+          </Link>
+        </RequirePermission>   
       </div>
 
       <Pagination

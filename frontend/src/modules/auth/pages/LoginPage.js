@@ -69,11 +69,16 @@ export default function LoginPage() {
       const user = await login(email, password);
       const portalCtx = user?.portalContext;
 
+      console.log('Logged in user:', user, portalCtx);
+
       if (portalCtx?.companyId && portalCtx?.establishmentId) {
         // Colaborador de portal → vai direto para documentos do estabelecimento
         navigate(
-          `/companies/${portalCtx.companyId}/establishments/${portalCtx.establishmentId}/documents`
+          //`/companies/${portalCtx.companyId}/establishments/${portalCtx.establishmentId}/documents`
+          `/companies/${portalCtx.companyId}`
         );
+      } else if (user?.isCompanyAdmin || user?.isGlobalAdmin) {
+        navigate('/companies');
       } else {
         // Usuário "admin" / normal → dashboard padrão
         navigate('/dashboard');

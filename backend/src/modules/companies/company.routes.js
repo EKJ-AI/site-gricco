@@ -17,7 +17,7 @@ router.get(
 router.get(
   '/:id',
   authenticateToken,
-  authorizePermissions('company.read'),
+  authorizePermissions(['establishment.read']),
   ctrl.getById,
 );
 

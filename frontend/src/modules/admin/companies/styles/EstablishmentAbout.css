@@ -1,0 +1,261 @@
+.est-about {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* HEADER */
+
+.est-about-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.est-about-title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.est-about-subtitle {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.est-about-status-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* BADGES */
+
+.est-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.est-badge-success {
+  background-color: #e6f7f0;
+  border-color: #a6e3c4;
+  color: #0a6b3b;
+}
+
+.est-badge-danger {
+  background-color: #fdebea;
+  border-color: #f2b5af;
+  color: #b01313;
+}
+
+.est-badge-info {
+  background-color: #e7f1ff;
+  border-color: #b8d3ff;
+  color: #215aa8;
+}
+
+/* GRID / CARDS */
+
+.est-about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.est-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  border: 1px solid #eef0f4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.est-card-header {
+  border-bottom: 1px solid #f2f2f2;
+  padding-bottom: 6px;
+}
+
+.est-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.est-card-header-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.est-card-body {
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* FIELDS */
+
+.est-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.est-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+}
+
+/* TAGS / RISK */
+
+.est-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+}
+
+.est-tag-muted {
+  background-color: #f5f5f5;
+  border-color: #e0e0e0;
+  color: #666;
+}
+
+/* Riscos 1..4 com cores diferentes */
+.est-tag-risk-1 {
+  background-color: #e6f7f0;
+  border-color: #a6e3c4;
+  color: #0a6b3b;
+}
+
+.est-tag-risk-2 {
+  background-color: #f4fbe6;
+  border-color: #d8f08f;
+  color: #728304;
+}
+
+.est-tag-risk-3 {
+  background-color: #fff6e6;
+  border-color: #ffd699;
+  color: #b46a07;
+}
+
+.est-tag-risk-4 {
+  background-color: #fdebea;
+  border-color: #f2b5af;
+  color: #b01313;
+}
+
+/* KPIs */
+
+.est-card-body-kpis {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.est-kpi {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.est-kpi-value {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.est-kpi-muted {
+  color: #666;
+}
+
+.est-kpi-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+}
+
+/* LINKS / BOTÕES */
+
+.est-link {
+  color: #215aa8;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.est-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.est-link-small {
+  font-size: 0.8rem;
+  color: #215aa8;
+  text-decoration: none;
+}
+
+.est-link-small:hover {
+  text-decoration: underline;
+}
+
+.est-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.est-button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #215aa8;
+  background: #215aa8;
+  color: #fff;
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.est-button-link:hover {
+  filter: brightness(0.95);
+}
+
+.est-button-link-secondary {
+  background: #fff;
+  color: #215aa8;
+}
+
+/* Responsivo básico */
+
+@media (max-width: 768px) {
+  .est-about-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .est-about-status-group {
+    justify-content: flex-start;
+  }
+}

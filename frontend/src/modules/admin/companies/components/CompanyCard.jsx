@@ -1,12 +1,17 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
 
 export default function CompanyCard({ item, onDelete }) {
   const isInactive = item.isActive === false;
 
+  const linkClassExact = ({ isActive }) =>
+  "item-icone-rotulo-cards" + (isActive ? " marcado" : "");
+  const linkClassMiniExact = ({ isActive }) =>
+  "item-icone-rotulo" + (isActive ? "" : "");
+
   return (
-    <div className="card" style={isInactive ? { opacity: 0.75 } : undefined}>
+    <div className={`card ${isInactive ? 'inativa' : 'ativa'} `} style={isInactive ? { opacity: 0.75 } : undefined}>
       <div className="card-title">
         {item.legalName}
         {isInactive && (
@@ -25,30 +30,45 @@ export default function CompanyCard({ item, onDelete }) {
           </span>
         )}
       </div>
-      <div className="card-subtitle">{item.tradeName || '-'}</div>
+      {/* <div className="card-subtitle">{item.tradeName || '-'}</div> */}
       <div className="card-meta">CNPJ: {item.cnpj}</div>
-      <div className="card-meta">
+      <div className={`card-meta ${isInactive ? 'inativa' : 'ativa'} `}>
         Status: {isInactive ? 'Inativa' : 'Ativa'}
       </div>
 
-      <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Link to={`/companies/${item.id}`} className="secondary">
-          Open
-        </Link>
+      <div className='card-actions'>
+        <NavLink to={`/companies/${item.id}`} end className={linkClassExact}>
+          <span className="sidebar-link-icon open-icon" />
+          <span>Open</span>
+        </NavLink>
+        <div className='display-flex'>
+          <RequirePermission permission="company.update">
+            <NavLink to={`/companies/${item.id}/edit`} end className={linkClassMiniExact}>
+              <span className="sidebar-link-icon edit-icon" />
+            </NavLink>
+          </RequirePermission>
 
-        <RequirePermission permission="company.update">
-          <Link to={`/companies/${item.id}/edit`}>Edit</Link>
-        </RequirePermission>
-
-        <RequirePermission permission="company.delete">
-          <button
-            type="button"
-            className="danger"
-            onClick={() => onDelete?.(item.id)}
-          >
-            Delete
-          </button>
-        </RequirePermission>
+          <RequirePermission permission="company.delete">
+            <NavLink to="#" 
+              end
+              className={linkClassMiniExact}
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete?.(item.id);
+              }}
+              title="Delete Company"
+            >
+              <span className="sidebar-link-icon delete-icon" />
+            </NavLink>
+            {/* <button
+              type="button"
+              className="danger"
+              onClick={() => onDelete?.(item.id)}
+            >
+              Delete
+            </button> */}
+          </RequirePermission>
+        </div>
       </div>
     </div>
   );

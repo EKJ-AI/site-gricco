@@ -9,7 +9,9 @@ import {
   Navigate,
 } from 'react-router-dom';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
+import { NavLink } from 'react-router-dom';
 import Tabs from '../components/Tabs.jsx';
+import iconVoltar from '../../../../shared/assets/images/admin/iconSetaEsquerda.svg';
 
 export default function EstablishmentView() {
   const { accessToken } = useAuth();
@@ -62,36 +64,44 @@ export default function EstablishmentView() {
 
   return (
     <div className="container">
-      <div className="page-header">
-        <h2>
-          {establishment?.nickname || establishment?.cnpj || 'Establishment'}
-          {isInactive && (
-            <span
-              style={{
-                marginLeft: 8,
-                padding: '2px 6px',
-                fontSize: 11,
-                borderRadius: 4,
-                backgroundColor: '#eee',
-                color: '#b00',
-                textTransform: 'uppercase',
-              }}
-            >
-              Inativo
-            </span>
-          )}
-        </h2>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <RequirePermission permission="establishment.update">
-            <Link
-              to={`/companies/${companyId}/establishments/${establishmentId}/edit`}
-              className="primary"
-            >
-              Edit
-            </Link>
+      <div className='barra-superior-pagina-interna'>
+        <div className="page-header titulo">
+          <RequirePermission permissions={['establishment.read']}>
+            <NavLink to={`/companies/${companyId}`}>
+                <img src={iconVoltar} alt="Voltar" style={{width: '24px', height: '24px', marginRight: '8px'}} />
+            </NavLink>
           </RequirePermission>
+          <h2>
+            {establishment?.nickname || establishment?.cnpj || 'Establishment'}
+            {isInactive && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  padding: '2px 6px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  backgroundColor: '#eee',
+                  color: '#b00',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Inativo
+              </span>
+            )}
+          </h2>
+
+          {/* <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <RequirePermission permission="establishment.update">
+              <Link
+                to={`/companies/${companyId}/establishments/${establishmentId}/edit`}
+                className="primary"
+              >
+                Edit
+              </Link>
+            </RequirePermission>
+          </div> */}
         </div>
+        <Tabs />
       </div>
 
       {loading && <div>Loading…</div>}
@@ -99,8 +109,6 @@ export default function EstablishmentView() {
 
       {!loading && !err && (
         <>
-          <Tabs />
-
           <Outlet />
 
           {isBasePath && (

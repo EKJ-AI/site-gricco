@@ -18,7 +18,7 @@ function PrivateLayout() {
 
       {/* Conteúdo das páginas privadas */}
       <main className="private-main">
-        <Topbar />
+        {/* <Topbar /> */}
         <section className="private-content">
           <Outlet />
         </section>

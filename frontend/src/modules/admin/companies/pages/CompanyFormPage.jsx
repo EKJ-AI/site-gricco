@@ -1,24 +1,28 @@
+// src/modules/admin/companies/pages/CompanyFormPage.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { createCompany, getCompany, updateCompany } from '../api/companies';
 import CompanyForm from './CompanyForm.jsx';
-import usePermission from '../../../auth/hooks/usePermission'; // 👈
+import usePermission from '../../../auth/hooks/usePermission';
+
+import '../../../../shared/styles/padrao.css';
+
+import { useToast, extractErrorMessage } from '../../../../shared/components/toast/ToastProvider';
 
 export default function CompanyFormPage() {
   const params = useParams();
-  // suporta tanto /companies/:companyId/edit quanto /companies/:id/edit
   const companyId = params.companyId || params.id || null;
   const mode = companyId ? 'edit' : 'create';
+
   const { accessToken } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [initialData, setInitialData] = useState(mode === 'create' ? {} : null);
   const [loading, setLoading] = useState(mode === 'edit');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // 👇 Permissões
   const canUpdate = usePermission('company.update');
   const canCreate = usePermission('company.create');
 
@@ -31,19 +35,17 @@ export default function CompanyFormPage() {
 
     let mounted = true;
     setLoading(true);
-    setError('');
 
     getCompany(companyId, accessToken)
       .then((data) => {
         if (!mounted) return;
-        // aceita tanto { id, ... } quanto { company: {...} }
         const company = data?.company || data;
         setInitialData(company || {});
       })
       .catch((e) => {
         console.error('[CompanyFormPage] getCompany error', e);
         if (!mounted) return;
-        setError('Failed to load company.');
+        toast.error(extractErrorMessage(e, 'Failed to load company.'), { title: 'Falha ao carregar' });
       })
       .finally(() => {
         if (!mounted) return;
@@ -53,31 +55,31 @@ export default function CompanyFormPage() {
     return () => {
       mounted = false;
     };
-  }, [mode, companyId, accessToken]);
+  }, [mode, companyId, accessToken, toast]);
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
-    setError('');
+
     try {
       if (mode === 'edit' && companyId) {
-        // se não pode atualizar, nem tenta enviar
         if (!canUpdate) {
-          setError('You do not have permission to update this company.');
+          toast.warning('Você não tem permissão para atualizar esta empresa.', { title: 'Permissão' });
           return;
         }
         await updateCompany(companyId, payload, accessToken);
       } else {
-        // criação – backend já cria a matriz automaticamente
         if (!canCreate) {
-          setError('You do not have permission to create companies.');
+          toast.warning('Você não tem permissão para criar empresas.', { title: 'Permissão' });
           return;
         }
         await createCompany(payload, accessToken);
       }
+
+      toast.success('Empresa salva com sucesso.', { title: 'Salvo' });
       navigate('/companies');
     } catch (e) {
       console.error('[CompanyFormPage] submit error', e);
-      setError('Failed to save company.');
+      toast.error(extractErrorMessage(e, 'Failed to save company.'), { title: 'Não foi possível salvar' });
     } finally {
       setSubmitting(false);
     }
@@ -85,28 +87,55 @@ export default function CompanyFormPage() {
 
   if (loading || (mode === 'edit' && !initialData)) {
     return (
-      <div className="container">
-        <h2>{mode === 'edit' ? 'Edit Company' : 'New Company'}</h2>
-        <div>Loading…</div>
+      <div className="pf-page">
+        <div className="pf-shell">
+          <header className="pf-header">
+            <div className="pf-header-left">
+              <div className="pf-header-icon">▦</div>
+              <div>
+                <h1 className="pf-title">{mode === 'edit' ? 'Edit Company' : 'New Company'}</h1>
+                <p className="pf-subtitle">Register your company here</p>
+              </div>
+            </div>
+            <button type="button" className="pf-close" onClick={() => navigate(-1)} aria-label="Close">
+              ×
+            </button>
+          </header>
+
+          <div className="pf-section">
+            <div>Loading…</div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const readOnly =
-    mode === 'edit' && !canUpdate; // 👈 não deixa editar se não tiver company.update
+  const readOnly = mode === 'edit' && !canUpdate;
 
   return (
-    <div className="container">
-      <h2>{mode === 'edit' ? 'Edit Company' : 'New Company'}</h2>
-      {error && <div className="error-message">{error}</div>}
+    <div className="pf-page">
+      <div className="pf-shell">
+        <header className="pf-header">
+          <div className="pf-header-left">
+            <div className="pf-header-icon">▦</div>
+            <div>
+              <h1 className="pf-title">{mode === 'edit' ? 'Edit Company' : 'New Company'}</h1>
+              <p className="pf-subtitle">Register your company here</p>
+            </div>
+          </div>
+          <button type="button" className="pf-close" onClick={() => navigate(-1)} aria-label="Close">
+            ×
+          </button>
+        </header>
 
-      <CompanyForm
-        key={companyId || 'new'}
-        initialData={initialData || {}}
-        onSubmit={handleSubmit}
-        submitting={submitting}
-        readOnly={readOnly}
-      />
+        <CompanyForm
+          key={companyId || 'new'}
+          initialData={initialData || {}}
+          onSubmit={handleSubmit}
+          submitting={submitting}
+          readOnly={readOnly}
+        />
+      </div>
     </div>
   );
 }

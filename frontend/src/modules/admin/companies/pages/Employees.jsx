@@ -38,7 +38,7 @@ export default function Employees() {
 
   const [selectedDepartment, setSelectedDepartment] = useState(null);
 
-  // --------- Autocomplete de departamentos (somente escopo estabelecimento) ---------
+  // ✅ Autocomplete de departamentos: somente ATIVOS
   const fetchDepartmentOptions = useCallback(
     async (query) => {
       if (
@@ -53,17 +53,24 @@ export default function Employees() {
       const res = await listDepartmentsInEstablishment(
         companyId,
         establishmentId,
-        { page: 1, pageSize: 50, q: query || '' },
-        accessToken,
+        {
+          page: 1,
+          pageSize: 50,
+          q: query || '',
+          status: 'active', // ✅ força somente ativos
+        },
+        accessToken
       );
 
-      const items = res?.items || [];
+      const rawItems = res?.items || [];
+      const items = rawItems.filter((d) => d?.isActive !== false); // ✅ segurança extra
+
       return {
         items,
         total: res?.total ?? items.length ?? 0,
       };
     },
-    [accessToken, scope, companyId, establishmentId],
+    [accessToken, scope, companyId, establishmentId]
   );
 
   const fetcher = useCallback(
@@ -80,7 +87,7 @@ export default function Employees() {
           res = await listEmployeesByCompany(
             companyId,
             { page, pageSize: 20, q, status: statusFilter },
-            accessToken,
+            accessToken
           );
         } else {
           // escopo estabelecimento: tenta usar rota aninhada, senão cai na legacy
@@ -89,13 +96,13 @@ export default function Employees() {
               companyId,
               establishmentId,
               { page, pageSize: 20, q, departmentId, status: statusFilter },
-              accessToken,
+              accessToken
             );
           } else {
             res = await listEmployeesByEstablishment(
               establishmentId,
               { page, pageSize: 20, q, departmentId, status: statusFilter },
-              accessToken,
+              accessToken
             );
           }
         }
@@ -106,7 +113,7 @@ export default function Employees() {
             total: 0,
             page,
             pageSize: 20,
-          },
+          }
         );
       } catch (e) {
         console.error('[Employees] list error', e);
@@ -123,8 +130,8 @@ export default function Employees() {
       q,
       accessToken,
       selectedDepartment,
-      statusFilter, // refaz quando trocar ativos/todos/inativos
-    ],
+      statusFilter,
+    ]
   );
 
   useEffect(() => {
@@ -139,7 +146,7 @@ export default function Employees() {
           companyId,
           establishmentId,
           id,
-          accessToken,
+          accessToken
         );
       } else {
         await deleteEmployee(id, accessToken);
@@ -169,14 +176,13 @@ export default function Employees() {
           flexWrap: 'wrap',
         }}
       >
-        <input
+        {/* <input
           placeholder="Search employees..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <button onClick={() => fetcher(1)}>Search</button>
 
-        {/* Filtro por status */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -186,7 +192,6 @@ export default function Employees() {
           <option value="inactive">Only inactive</option>
         </select>
 
-        {/* Filtro por departamento no escopo de estabelecimento */}
         {scope === 'establishment' && (
           <div style={{ minWidth: 260 }}>
             <AutocompleteSelect
@@ -201,7 +206,7 @@ export default function Employees() {
               disabled={!accessToken}
             />
           </div>
-        )}
+        )} */}
 
         <RequirePermission permissions={['employee.create']}>
           <Link to={newUrl} className="primary">

@@ -414,7 +414,7 @@ export default function CnaeMultiInput({ value = [], onChange, disabled }) {
             </button>
           </div>
         </div>
-        <div
+        {/* <div
           className="card"
           style={{ padding: 8, alignSelf: 'flex-end' }}
         >
@@ -424,7 +424,7 @@ export default function CnaeMultiInput({ value = [], onChange, disabled }) {
           ) : (
             <span style={{ color: '#666' }}>nenhum selecionado</span>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* Tabela de CNAEs selecionados - largura horizontal ajustada */}

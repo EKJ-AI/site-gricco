@@ -308,55 +308,55 @@ const PROFILE_CONFIG = [
   {
     // ⚠️ Nome bate com o usado em employee.controller:
     // PORTAL_EMPLOYEE_PROFILE_NAME || 'Portal Employee'
-    name: 'Portal Employee',
+    name: 'Admin Master',
     description:
       'Colaborador de portal com acesso apenas aos documentos dos estabelecimentos aos quais está vinculado.',
     perms: [
       // possibilita acessar a empresa e estabelecimento vinculados
-      'company.read',
-      'company.update',
+      //'company.read',
+      //'company.update',
 
       'dashboard.view',
 
-      'department.active',
-      'department.create',
-      'department.delete',
+      //'department.active',
+      //'department.create',
+      //'department.delete',
       'department.read',
-      'department.update',
+      //'department.update',
 
       // acesso às telas básicas do estabelecimento
-      'establishment.active',
-      'establishment.create',
-      'establishment.delete',
+      //'establishment.active',
+      //'establishment.create',
+      //'establishment.delete',
       'establishment.read',
-      'establishment.update',
+      //'establishment.update',
 
       // leitura de documentos (o escopo real é filtrado pelo vínculo Employee.portalUserId)
       'document.read',
       'document.view',
       'document.download',
-      'document.active',
-      'document.create',
-      'document.delete',
-      'document.update',
+      //'document.active',
+      //'document.create',
+      //'document.delete',
+      //'document.update',
 
-      'documentVersion.activate',
-      'documentVersion.archive',
-      'documentVersion.create',
+      //'documentVersion.activate',
+      //'documentVersion.archive',
+      //'documentVersion.create',
       'documentVersion.read',
-      'documentVersion.update',
+      //'documentVersion.update',
 
-      'employee.active',
-      'employee.create',
-      'employee.delete',
+      //'employee.active',
+      //'employee.create',
+      //'employee.delete',
       'employee.read',
-      'employee.update',
+      //'employee.update',
 
       // leitura de catálogos (ex.: CBO, CNAE, etc.)
       'catalog.read',
 
        // Blog / CMS – pode ler posts públicos
-      'blog.post.read',
+      'blog.post.read', 
     ],
   },
   {

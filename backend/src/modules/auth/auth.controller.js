@@ -125,6 +125,9 @@ export async function login(req, res) {
       (p) => p.permission.name,
     );
 
+    const isGlobalAdmin = permissions.includes('system.admin.global');
+    const isCompanyAdmin = isGlobalAdmin || permissions.includes('company.admin');
+
     // Contexto de colaborador de portal (se existir)
     const portalContext = await getPortalContextForUser(user.id);
 
@@ -137,6 +140,8 @@ export async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
+        isGlobalAdmin,
+        isCompanyAdmin,
         profile: {
           id: user.profile.id,
           name: user.profile.name,
@@ -257,6 +262,10 @@ export async function refresh(req, res) {
     const permissions = user.profile.permissions.map(
       (p) => p.permission.name,
     );
+
+    const isGlobalAdmin = permissions.includes('system.admin.global');
+    const isCompanyAdmin = isGlobalAdmin || permissions.includes('company.admin');
+
     const portalContext = await getPortalContextForUser(user.id);
 
     res.cookie(REFRESH_COOKIE_NAME, newRefreshToken, REFRESH_COOKIE_OPTS);
@@ -268,6 +277,8 @@ export async function refresh(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
+        isGlobalAdmin,
+        isCompanyAdmin,
         profile: {
           id: user.profile.id,
           name: user.profile.name,

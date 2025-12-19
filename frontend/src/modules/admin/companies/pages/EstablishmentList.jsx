@@ -69,9 +69,9 @@ export default function EstablishmentList() {
   return (
     <div className="container">
       <div className="page-header">
-        <h2>Establishments</h2>
+        <h2>Sites</h2>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input
+          {/* <input
             placeholder="Search..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -84,7 +84,7 @@ export default function EstablishmentList() {
           >
             <option value="all">All (active + inactive)</option>
             <option value="active">Only active</option>
-          </select>
+          </select> */}
 
           <RequirePermission permission="establishment.create">
             <Link
@@ -99,7 +99,7 @@ export default function EstablishmentList() {
 
       {err && <div className="error-message">{err}</div>}
 
-      <div className="grid">
+      <div className="cards"> 
         {data.items.map((e) => (
           <EstablishmentCard
             key={e.id}

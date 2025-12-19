@@ -8,11 +8,6 @@
 .formularioSimples div {
     flex: 1;
 }
-.formularioSimples .titulo {
-    /* background: url("../assets/images/home/lgGricco3D_claro.svg") no-repeat;
-    background-repeat: no-repeat;
-    background-position: -70px calc(100% + 150px); */
-}
 
 .formularioSimples .titulo *{
     color:var(--cor-azul-padrao);
@@ -29,6 +24,11 @@
 
 .formularioSimples .campos .form-group input, .formularioSimples .campos .form-group textarea {
     background-color: var(--cor-cinza-claro-padrao);
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    padding: .75rem 1rem;
+    width: 100%;
 }
 
 @media (max-width: 768px) {

@@ -85,6 +85,54 @@ html, body {
   background-color: #efefef;
 }
 
+.item-icone-rotulo-cards {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    padding: 10px;
+    background-color: #efefef;
+    border-radius: 50px;
+}
+
+.item-icone-rotulo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    padding: 10px;
+}
+.item-icone-rotulo.marcado, .item-icone-rotulo-cards.marcado {
+    background-color: #ffebe3;
+    border-radius: 50px;
+    font-weight: 600;
+}
+.item-icone-rotulo.marcado span:first-child, .item-icone-rotulo-cards.marcado span:first-child {
+    background-color: #ff4c02;
+}
+.item-icone-rotulo.marcado span:last-child, .item-icone-rotulo-cards.marcado span:last-child {
+    color: #ff4c02;
+}
+
+.item-icone-rotulo:hover, .item-icone-rotulo-cards:hover {
+    background-color: #fff;
+    border-radius: 50px;
+}
+
+.item-icone-rotulo span:first-child, .item-icone-rotulo-cards span:first-child {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #939393;
+}
+.item-icone-rotulo span:last-child, .item-icone-rotulo-cards span:last-child {
+    font-size: 14px;
+    color: #939393;
+}
+
 /**************** PADRÕES ********************/
 
 h1{

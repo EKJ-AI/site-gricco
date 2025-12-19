@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   createDepartmentInEstablishment,
   getDepartmentInEstablishment,
@@ -7,11 +7,19 @@ import {
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import usePermission from '../../../auth/hooks/usePermission';
+import { useToast, extractErrorMessage } from '../../../../shared/components/toast/ToastProvider';
+
+function validateDepartment(form) {
+  const missing = [];
+  if (!String(form.name || '').trim()) missing.push('Nome');
+  return { ok: missing.length === 0, missing };
+}
 
 export default function DepartmentForm({ mode = 'create' }) {
   const { accessToken } = useAuth();
   const { companyId, establishmentId, departmentId } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [form, setForm] = useState({
     name: '',
@@ -20,142 +28,187 @@ export default function DepartmentForm({ mode = 'create' }) {
     workload: '',
     isActive: true,
   });
-  const [error, setError] = useState('');
 
-  // permissões
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
   const canCreate = usePermission('department.create');
   const canUpdate = usePermission('department.update');
+  const canWrite = mode === 'edit' ? canUpdate : canCreate;
 
   useEffect(() => {
-    if (mode === 'edit' && departmentId) {
-      getDepartmentInEstablishment(
-        companyId,
-        establishmentId,
-        departmentId,
-        accessToken
-      )
-        .then((d) => {
-          if (!d) return;
-          setForm({
-            name: d.name || '',
-            description: d.description || '',
-            shift: d.shift || '',
-            workload: d.workload || '',
-            isActive:
-              typeof d.isActive === 'boolean' ? d.isActive : true,
-          });
-        })
-        .catch(() => {
-          setError('Failed to load department.');
-        });
+    // avisa uma vez ao entrar sem permissão
+    if (!loading && !submitting && !canWrite) {
+      toast.warning(
+        `Você não tem permissão para ${mode === 'edit' ? 'atualizar' : 'criar'} departamentos.`,
+        { title: 'Permissão' }
+      );
     }
-  }, [mode, departmentId, companyId, establishmentId, accessToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canWrite, mode]);
 
-  const submit = async (e) => {
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (mode !== 'edit' || !departmentId) return;
+
+      try {
+        setLoading(true);
+        const d = await getDepartmentInEstablishment(companyId, establishmentId, departmentId, accessToken);
+        if (!d || !isMounted) return;
+
+        setForm({
+          name: d.name || '',
+          description: d.description || '',
+          shift: d.shift || '',
+          workload: d.workload || '',
+          isActive: typeof d.isActive === 'boolean' ? d.isActive : true,
+        });
+      } catch (e) {
+        toast.error(extractErrorMessage(e, 'Falha ao carregar o departamento.'), { title: 'Falha ao carregar' });
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { isMounted = false; };
+  }, [mode, departmentId, companyId, establishmentId, accessToken, toast]);
+
+  const validation = useMemo(() => validateDepartment(form), [form]);
+  const saveDisabled = loading || submitting || !canWrite || !validation.ok;
+
+  async function submit(e) {
     e.preventDefault();
-    setError('');
 
-    // bloqueio por permissão
-    if (mode === 'edit' && !canUpdate) {
-      setError('You do not have permission to update departments.');
+    const v = validateDepartment(form);
+    if (!v.ok) {
+      const preview = v.missing.slice(0, 4).join(', ');
+      const tail = v.missing.length > 4 ? `… (+${v.missing.length - 4})` : '';
+      toast.warning(`Preencha os campos obrigatórios: ${preview}${tail}`, { title: 'Campos obrigatórios' });
       return;
     }
-    if (mode === 'create' && !canCreate) {
-      setError('You do not have permission to create departments.');
+
+    if (!canWrite) {
+      toast.warning('Você não tem permissão para salvar departamentos.', { title: 'Permissão' });
       return;
     }
 
     try {
+      setSubmitting(true);
+
       if (mode === 'edit') {
-        await updateDepartmentInEstablishment(
-          companyId,
-          establishmentId,
-          departmentId,
-          form,
-          accessToken
-        );
+        await updateDepartmentInEstablishment(companyId, establishmentId, departmentId, form, accessToken);
       } else {
-        await createDepartmentInEstablishment(
-          companyId,
-          establishmentId,
-          form,
-          accessToken
-        );
+        await createDepartmentInEstablishment(companyId, establishmentId, form, accessToken);
       }
 
-      navigate(
-        `/companies/${companyId}/establishments/${establishmentId}/departments`
-      );
-    } catch {
-      setError('Failed to save.');
+      toast.success('Departamento salvo com sucesso.', { title: 'Salvo' });
+      navigate(`/companies/${companyId}/establishments/${establishmentId}/departments`);
+    } catch (e2) {
+      toast.error(extractErrorMessage(e2, 'Falha ao salvar.'), { title: 'Não foi possível salvar' });
+    } finally {
+      setSubmitting(false);
     }
-  };
-
-  const saveDisabled =
-    (mode === 'edit' && !canUpdate) || (mode === 'create' && !canCreate);
+  }
 
   return (
-    <div className="container">
-      <h2>{mode === 'edit' ? 'Edit Department' : 'New Department'}</h2>
-      {error && <div className="error-message">{error}</div>}
+    <div className="pf-page">
+      <div className="pf-shell">
+        <div className="pf-header">
+          <div className="pf-header-left">
+            <div className="pf-header-icon" aria-hidden="true">🏷️</div>
+            <div>
+              <h2 className="pf-title">{mode === 'edit' ? 'Editar Departamento' : 'Novo Departamento'}</h2>
+              <p className="pf-subtitle">
+                {mode === 'edit'
+                  ? 'Atualize as informações do departamento.'
+                  : 'Cadastre um novo departamento no estabelecimento.'}
+              </p>
+            </div>
+          </div>
 
-      <form className="form" onSubmit={submit}>
-        <div className="grid-2">
-          <input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            placeholder="Shift"
-            value={form.shift}
-            onChange={(e) => setForm({ ...form, shift: e.target.value })}
-          />
-        </div>
-        <div className="grid-2">
-          <input
-            placeholder="Workload"
-            value={form.workload}
-            onChange={(e) => setForm({ ...form, workload: e.target.value })}
-          />
-          <input
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) =>
-              setForm({ ...form, description: e.target.value })
-            }
-          />
-        </div>
-
-        <div style={{ margin: '8px 0 16px' }}>
-          <label
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-          >
-            <input
-              type="checkbox"
-              checked={!!form.isActive}
-              onChange={(e) =>
-                setForm({ ...form, isActive: e.target.checked })
-              }
-            />
-            Department active
-          </label>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="submit" disabled={saveDisabled}>
-            Save
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => navigate(-1)}
-          >
-            Cancel
+          <button type="button" className="pf-close" onClick={() => navigate(-1)} aria-label="Fechar">
+            ✕
           </button>
         </div>
-      </form>
+
+        <form className="pf-form" onSubmit={submit}>
+          <section className="pf-section">
+            <div className="grid-2">
+              <label>
+                Nome *
+                <input
+                  placeholder="Ex.: Produção"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  disabled={loading || submitting || !canWrite}
+                />
+              </label>
+
+              <label>
+                Turno
+                <input
+                  placeholder="Ex.: 1º turno"
+                  value={form.shift}
+                  onChange={(e) => setForm((f) => ({ ...f, shift: e.target.value }))}
+                  disabled={loading || submitting || !canWrite}
+                />
+              </label>
+            </div>
+
+            <div className="grid-2" style={{ marginTop: 10 }}>
+              <label>
+                Jornada
+                <input
+                  placeholder="Ex.: 44h/semana"
+                  value={form.workload}
+                  onChange={(e) => setForm((f) => ({ ...f, workload: e.target.value }))}
+                  disabled={loading || submitting || !canWrite}
+                />
+              </label>
+
+              <label>
+                Descrição
+                <input
+                  placeholder="Opcional"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  disabled={loading || submitting || !canWrite}
+                />
+              </label>
+            </div>
+
+            <div className="pf-switch-row" style={{ marginTop: 10 }}>
+              <p className="pf-switch-label">Departamento ativo</p>
+              <input
+                type="checkbox"
+                className="pf-switch"
+                checked={!!form.isActive}
+                onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                disabled={loading || submitting || !canWrite}
+                aria-label="Departamento ativo"
+              />
+            </div>
+          </section>
+
+          <div className="pf-actions">
+            <button
+              type="button"
+              className="pf-btn pf-btn-secondary"
+              onClick={() => navigate(-1)}
+              disabled={loading || submitting}
+            >
+              Cancelar
+            </button>
+
+            <button type="submit" className="pf-btn pf-btn-primary" disabled={saveDisabled}>
+              {submitting ? 'Salvando…' : 'Salvar cadastro'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

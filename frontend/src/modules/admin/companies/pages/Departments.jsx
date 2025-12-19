@@ -8,13 +8,15 @@ import Pagination from '../components/Pagination.jsx';
 import { useAuth } from '../../../auth/contexts/AuthContext.js';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
 import { Link, useParams } from 'react-router-dom';
+import imgLupa from '../../../../shared/assets/images/admin/iconPesquisar.svg';
+import "../styles/departament.css";
 
 export default function Departments() {
   const { accessToken } = useAuth();
   const { companyId, establishmentId } = useParams();
 
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active'); // all | active | inactive
+  const [statusFilter, setStatusFilter] = useState('all'); // ✅ all | active | inactive
   const [data, setData] = useState({
     items: [],
     total: 0,
@@ -53,24 +55,16 @@ export default function Departments() {
   };
 
   return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          marginBottom: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <input
-          placeholder="Search departments..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <button onClick={() => fetcher(1)}>Search</button>
-
-        {/* Filtro de status */}
+    <div className='page-departament'>
+      <div className='header'>
+        {/* <div className='barra-pesquisa'>
+          <input
+            placeholder="Search departments..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <img src={imgLupa} onClick={() => fetcher(1)} />
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -78,7 +72,7 @@ export default function Departments() {
           <option value="all">All</option>
           <option value="active">Only active</option>
           <option value="inactive">Only inactive</option>
-        </select>
+        </select> */}
 
         <RequirePermission permissions={['department.create']}>
           <Link

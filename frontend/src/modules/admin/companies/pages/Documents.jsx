@@ -2,16 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../../auth/contexts/AuthContext';
 import { useParams, Link } from 'react-router-dom';
 import RequirePermission from '../../../../shared/hooks/RequirePermission';
-import {
-  listDocuments,
-  deleteDocument,
-  listRelations,
-} from '../api/documents';
+import { listDocuments, deleteDocument, listRelations } from '../api/documents';
 import DocumentTable from '../components/DocumentTable.jsx';
 import Pagination from '../components/Pagination.jsx';
+import '../styles/documents.css';
+import { useToast, extractErrorMessage } from '../../../../shared/components/toast/ToastProvider';
+import ConfirmModal from '../../../../shared/components/modals/ConfirmModal.jsx';
 
 // ---------- Helpers de status por tipo de documento ----------
-
 function getProgramStatus(docsForType) {
   if (!docsForType.length) return 'EMPTY';
   const hasActive = docsForType.some((d) => d.status === 'ACTIVE');
@@ -34,38 +32,22 @@ function getProgramStatusLabel(status) {
 function getProgramStatusStyle(status) {
   switch (status) {
     case 'OK':
-      return {
-        backgroundColor: '#ecfdf3',
-        border: '1px solid #16a34a33',
-        color: '#166534',
-      };
+      return { backgroundColor: '#ecfdf3', border: '1px solid #16a34a33', color: '#166534' };
     case 'PENDING':
-      return {
-        backgroundColor: '#fffbeb',
-        border: '1px solid #facc1533',
-        color: '#92400e',
-      };
+      return { backgroundColor: '#fffbeb', border: '1px solid #facc1533', color: '#92400e' };
     case 'EMPTY':
     default:
-      return {
-        backgroundColor: '#f3f4f6',
-        border: '1px solid #9ca3af33',
-        color: '#374151',
-      };
+      return { backgroundColor: '#f3f4f6', border: '1px solid #9ca3af33', color: '#374151' };
   }
 }
 
 export default function Documents() {
   const { accessToken } = useAuth();
   const { companyId, establishmentId } = useParams();
+  const toast = useToast();
 
   const [q, setQ] = useState('');
-  const [data, setData] = useState({
-    items: [],
-    total: 0,
-    page: 1,
-    pageSize: 20,
-  });
+  const [data, setData] = useState({ items: [], total: 0, page: 1, pageSize: 20 });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
@@ -73,8 +55,12 @@ export default function Documents() {
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  // ---------- Busca de contagem de evidências para os docs da página ----------
+  // Delete confirm modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // {id, name}
+  const [deleting, setDeleting] = useState(false);
 
+  // ---------- Busca de contagem de evidências para os docs da página ----------
   const fetchEvidenceCounts = useCallback(
     async (docs) => {
       if (!accessToken || !docs.length) return {};
@@ -82,7 +68,6 @@ export default function Documents() {
       await Promise.all(
         docs.map(async (d) => {
           try {
-            // doc como PAI (MAIN -> evidências)
             const resRel = await listRelations(
               companyId,
               establishmentId,
@@ -104,51 +89,39 @@ export default function Documents() {
   );
 
   // ---------- Lista com paginação + search ----------
-
   const fetcher = useCallback(
     async (page = 1) => {
       if (!accessToken) return;
       setLoading(true);
       setErr('');
       try {
-        const res = await listDocuments(
-          companyId,
-          establishmentId,
-          { page, pageSize: 20, q },
-          accessToken
-        );
+        const res = await listDocuments(companyId, establishmentId, { page, pageSize: 20, q }, accessToken);
 
         const items = Array.isArray(res) ? res : res?.items || [];
         const total = res?.total ?? (Array.isArray(items) ? items.length : 0);
 
         const evidenceMap = await fetchEvidenceCounts(items);
-        const itemsWithCounts = items.map((d) => ({
-          ...d,
-          evidencesCount: evidenceMap[d.id] || 0,
-        }));
+        const itemsWithCounts = items.map((d) => ({ ...d, evidencesCount: evidenceMap[d.id] || 0 }));
 
-        setData({
-          items: itemsWithCounts,
-          total,
-          page,
-          pageSize: 20,
-        });
+        setData({ items: itemsWithCounts, total, page, pageSize: 20 });
       } catch (e) {
         console.error(e);
         const status = e?.response?.status;
         if (status === 403) {
-          setErr(
-            'Você não tem permissão para visualizar os documentos deste estabelecimento.'
-          );
+          const msg = 'Você não tem permissão para visualizar os documentos deste estabelecimento.';
+          setErr(msg);
+          toast.warning(msg, { title: 'Permissão' });
         } else {
-          setErr('Failed to load documents.');
+          const msg = 'Failed to load documents.';
+          setErr(msg);
+          toast.error(extractErrorMessage(e, msg), { title: 'Erro' });
         }
         setData((old) => ({ ...old, items: [], total: 0, page }));
       } finally {
         setLoading(false);
       }
     },
-    [companyId, establishmentId, accessToken, q, fetchEvidenceCounts]
+    [companyId, establishmentId, accessToken, q, fetchEvidenceCounts, toast]
   );
 
   useEffect(() => {
@@ -157,130 +130,102 @@ export default function Documents() {
   }, [companyId, establishmentId, accessToken, q]);
 
   // ---------- Resumo dinâmico por tipo de documento principal ----------
-
   const loadSummary = useCallback(async () => {
     if (!accessToken || !companyId || !establishmentId) return;
     setLoadingSummary(true);
     try {
-      // Carrega até 500 documentos do estabelecimento para montar o resumo
-      const res = await listDocuments(
-        companyId,
-        establishmentId,
-        { page: 1, pageSize: 500, q: '' },
-        accessToken
-      );
+      const res = await listDocuments(companyId, establishmentId, { page: 1, pageSize: 500, q: '' }, accessToken);
       const allDocs = res?.items || res || [];
 
-      // Consideramos apenas tipos de documento principal (kind = MAIN)
-      const mainDocs = allDocs.filter(
-        (d) => d.type?.kind === 'MAIN'
-      );
+      const mainDocs = allDocs.filter((d) => d.type?.kind === 'MAIN');
 
-      // Agrupa por DocumentType
       const byType = new Map();
       for (const doc of mainDocs) {
         const typeId = doc.type?.id || doc.typeId;
         if (!typeId) continue;
-        const key = typeId;
-        const group = byType.get(key) || {
-          typeId: key,
+        const group = byType.get(typeId) || {
+          typeId,
           typeName: doc.type?.name || 'Tipo sem nome',
           typeDescription: doc.type?.description || '',
           docs: [],
         };
         group.docs.push(doc);
-        byType.set(key, group);
+        byType.set(typeId, group);
       }
 
-      // Constrói array de resumo
       const items = Array.from(byType.values())
         .map((g) => {
           const status = getProgramStatus(g.docs);
-          return {
-            typeId: g.typeId,
-            typeName: g.typeName,
-            typeDescription: g.typeDescription,
-            status,
-            docs: g.docs,
-          };
+          return { typeId: g.typeId, typeName: g.typeName, typeDescription: g.typeDescription, status, docs: g.docs };
         })
-        .sort((a, b) =>
-          a.typeName.localeCompare(b.typeName, 'pt-BR', {
-            sensitivity: 'base',
-          })
-        );
+        .sort((a, b) => a.typeName.localeCompare(b.typeName, 'pt-BR', { sensitivity: 'base' }));
 
       setSummary({ items });
     } catch (e) {
       console.error('Failed to load dynamic summary', e);
+      toast.error(extractErrorMessage(e, 'Failed to load summary.'), { title: 'Erro' });
       setSummary(null);
     } finally {
       setLoadingSummary(false);
     }
-  }, [accessToken, companyId, establishmentId]);
+  }, [accessToken, companyId, establishmentId, toast]);
 
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
 
   // ---------- Delete ----------
+  const requestDelete = (row) => {
+    setDeleteTarget({ id: row?.id, name: row?.name || 'Documento' });
+    setDeleteModalOpen(true);
+  };
 
-  const onDelete = async (id) => {
-    if (!window.confirm('Confirm delete?')) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) {
+      setDeleteModalOpen(false);
+      return;
+    }
+
+    setDeleting(true);
+    setErr('');
     try {
-      await deleteDocument(companyId, establishmentId, id, accessToken);
-      fetcher(data.page);
-      loadSummary();
+      await deleteDocument(companyId, establishmentId, deleteTarget.id, accessToken);
+      toast.success('Documento removido.', { title: 'OK' });
+      setDeleteModalOpen(false);
+      setDeleteTarget(null);
+      await Promise.all([fetcher(data.page), loadSummary()]);
     } catch (e) {
       console.error(e);
-      setErr('Failed to delete document.');
+      const msg = 'Failed to delete document.';
+      setErr(msg);
+      toast.error(extractErrorMessage(e, msg), { title: 'Erro' });
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
-    <div>
-      {/* Resumo dinâmico por tipo de documento principal */}
-      <div style={{ marginBottom: 12 }}>
-        <h2>Documentos do Estabelecimento</h2>
+    <div className="page-documents">
+      <div className="header">
+        <h4>Documentos</h4>
         <p style={{ marginTop: 4, fontSize: 13, color: '#555' }}>
-          Visão geral dos <strong>tipos de documentos principais</strong> (PGR,
-          PCMSO, LTCAT, laudos, programas etc.). Esta visão é{' '}
-          <strong>dinâmica</strong> e baseada no cadastro de tipos de
-          documento (Document Types).
+          Visão geral dos <strong>tipos de documentos principais</strong> (PGR, PCMSO, LTCAT, laudos, programas etc.).
+          Esta visão é <strong>dinâmica</strong> e baseada no cadastro de tipos de documento (Document Types).
         </p>
 
         <div className="card" style={{ padding: 12 }}>
           {loadingSummary && <div>Carregando resumo…</div>}
 
           {!loadingSummary && summary && summary.items?.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-              }}
-            >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {summary.items.map((t) => {
                 const style = getProgramStatusStyle(t.status);
                 return (
                   <div
                     key={t.typeId}
-                    style={{
-                      minWidth: 180,
-                      padding: 10,
-                      borderRadius: 8,
-                      fontSize: 12,
-                      ...style,
-                    }}
+                    style={{ minWidth: 180, padding: 10, borderRadius: 8, fontSize: 12, ...style }}
                   >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4,
-                      }}
-                    >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <strong
                         style={{
                           fontSize: 13,
@@ -293,31 +238,18 @@ export default function Documents() {
                       >
                         {t.typeName}
                       </strong>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {getProgramStatusLabel(t.status)}
-                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 600 }}>{getProgramStatusLabel(t.status)}</span>
                     </div>
+
                     {t.typeDescription && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          marginBottom: 4,
-                          color: 'inherit',
-                          opacity: 0.9,
-                        }}
-                      >
+                      <div style={{ fontSize: 11, marginBottom: 4, color: 'inherit', opacity: 0.9 }}>
                         {t.typeDescription}
                       </div>
                     )}
+
                     <div style={{ fontSize: 11, marginTop: 4 }}>
                       <span style={{ fontWeight: 500 }}>
-                        {t.docs.length} documento
-                        {t.docs.length > 1 ? 's' : ''} do tipo.
+                        {t.docs.length} documento{t.docs.length > 1 ? 's' : ''} do tipo.
                       </span>
                     </div>
                   </div>
@@ -328,37 +260,16 @@ export default function Documents() {
 
           {!loadingSummary && (!summary || summary.items?.length === 0) && (
             <div style={{ fontSize: 13 }}>
-              Nenhum documento principal encontrado ainda. Assim que você
-              cadastrar documentos com tipos classificados como{' '}
-              <strong>MAIN</strong> (Document Type &rarr; kind = MAIN),
-              eles aparecerão aqui agrupados por tipo.
+              Nenhum documento principal encontrado ainda. Assim que você cadastrar documentos com tipos classificados como
+              <strong> MAIN</strong> (Document Type → kind = MAIN), eles aparecerão aqui agrupados por tipo.
             </div>
           )}
         </div>
       </div>
 
-      {/* Filtros + ações */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          marginBottom: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <input
-          placeholder="Search documents..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <button onClick={() => fetcher(1)}>Search</button>
-
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
         <RequirePermission permission="document.create">
-          <Link
-            to={`/companies/${companyId}/establishments/${establishmentId}/documents/new`}
-            className="primary"
-          >
+          <Link to={`/companies/${companyId}/establishments/${establishmentId}/documents/new`} className="primary">
             New Document
           </Link>
         </RequirePermission>
@@ -370,15 +281,36 @@ export default function Documents() {
         <div>Loading…</div>
       ) : (
         <>
-          <DocumentTable rows={data.items} onDelete={onDelete} />
-          <Pagination
-            page={data.page}
-            pageSize={data.pageSize}
-            total={data.total}
-            onChange={(p) => fetcher(p)}
+          <DocumentTable
+            rows={data.items}
+            onDelete={(idOrRow) => {
+              const row =
+                typeof idOrRow === 'object'
+                  ? idOrRow
+                  : data.items.find((x) => x.id === idOrRow);
+
+              requestDelete(row || { id: idOrRow, name: 'Documento' });
+            }}
           />
+
+          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={(p) => fetcher(p)} />
         </>
       )}
+
+      <ConfirmModal
+        open={deleteModalOpen}
+        title="Excluir documento"
+        message={deleteTarget?.name ? `Confirmar exclusão do documento: "${deleteTarget.name}"?` : 'Confirmar exclusão?'}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        loading={deleting}
+        onCancel={() => {
+          if (deleting) return;
+          setDeleteModalOpen(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

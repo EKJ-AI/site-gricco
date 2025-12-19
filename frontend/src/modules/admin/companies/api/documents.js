@@ -22,12 +22,7 @@ export async function listDocuments(
   return res.data?.data;
 }
 
-export async function getDocument(
-  companyId,
-  establishmentId,
-  documentId,
-  token
-) {
+export async function getDocument(companyId, establishmentId, documentId, token) {
   const res = await api.get(
     `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}`,
     {
@@ -92,12 +87,7 @@ export async function searchDocuments(
   { q = '', page = 1, pageSize = 20 } = {},
   token
 ) {
-  return listDocuments(
-    companyId,
-    establishmentId,
-    { q, page, pageSize },
-    token
-  );
+  return listDocuments(companyId, establishmentId, { q, page, pageSize }, token);
 }
 
 // ----------------- VERSIONS -----------------
@@ -152,6 +142,51 @@ export async function activateVersion(
     }
   );
   return res.data?.data;
+}
+
+/**
+ * Despublica (arquiva) uma versão.
+ * Como o backend pode ter nomes diferentes de rota (legado vs. atual),
+ * tentamos alguns endpoints em sequência.
+ */
+export async function archiveVersion(
+  companyId,
+  establishmentId,
+  documentId,
+  versionId,
+  token
+) {
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const candidates = [
+    // 1) padrão "novo" (com bindDocument): archiveFromDocument
+    `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}/archiveFromDocument`,
+    // 2) padrão "legado" simples
+    `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}/archive`,
+    // 3) variação sem sufixo (se seu backend usar /:id/archive)
+    `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}/archive-version`,
+  ];
+
+  let lastErr = null;
+
+  for (const url of candidates) {
+    try {
+      const res = await api.post(url, {}, { headers });
+      return res.data?.data;
+    } catch (err) {
+      const status = err?.response?.status;
+      // se não existe, tenta a próxima
+      if (status === 404) {
+        lastErr = err;
+        continue;
+      }
+      // erros de permissão/validação devem aparecer direto
+      throw err;
+    }
+  }
+
+  // se caiu aqui, nenhuma rota existia
+  throw lastErr || new Error('Archive endpoint not found.');
 }
 
 export async function updateVersionDescription(
@@ -232,11 +267,6 @@ export async function deleteRelation(
 
 // ----------------- ACCESS LOGS (Registros) -----------------
 
-/**
- * Busca registros agregados de acesso ao documento (VIEW / DOWNLOAD / UPLOAD).
- * Endpoint no backend:
- * GET /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/access-log
- */
 export async function fetchDocumentAccessLog(
   companyId,
   establishmentId,
@@ -252,11 +282,6 @@ export async function fetchDocumentAccessLog(
   return res.data?.data;
 }
 
-/**
- * Busca registros agregados de acesso a uma VERSÃO do documento.
- * Endpoint no backend:
- * GET /api/companies/:companyId/establishments/:establishmentId/documents/:documentId/versions/:versionId/access-log
- */
 export async function fetchDocumentVersionAccessLog(
   companyId,
   establishmentId,
@@ -308,19 +333,15 @@ export function buildDocumentFileUrl(
   mode = 'view'
 ) {
   const baseURL = api.defaults.baseURL || '';
-  const safeBase = baseURL.replace(/\/+$/, ''); // tira barra final
+  const safeBase = baseURL.replace(/\/+$/, '');
   const safeMode = mode === 'download' ? 'download' : 'view';
 
-  // tenta pegar o token atual do axios (setado no AuthContext)
   const authHeader = api.defaults.headers.common?.Authorization || '';
   const rawToken = authHeader.startsWith('Bearer ')
     ? authHeader.slice(7)
     : authHeader;
-  const tokenParam = rawToken
-    ? `&token=${encodeURIComponent(rawToken)}`
-    : '';
+  const tokenParam = rawToken ? `&token=${encodeURIComponent(rawToken)}` : '';
 
-  // sua API está respondendo em /api/... (vide logs)
   const path = `/api/companies/${companyId}/establishments/${establishmentId}/documents/${documentId}/versions/${versionId}/file?mode=${safeMode}`;
 
   return `${safeBase}${path}${tokenParam}`;

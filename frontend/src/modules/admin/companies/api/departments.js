@@ -23,6 +23,9 @@ export async function listDepartments(
 
   if (isActive !== undefined) {
     params.isActive = isActive;
+  } else if (status === 'all') {
+    // ✅ garante compatibilidade com backend legado
+    params.includeInactive = 1;
   }
 
   const res = await api.get('/api/departments', {
@@ -85,8 +88,12 @@ export async function listDepartmentsInEstablishment(
     status === 'active' ? true : status === 'inactive' ? false : undefined;
 
   const params = { page, pageSize, q };
+
   if (isActive !== undefined) {
     params.isActive = isActive;
+  } else if (status === 'all') {
+    // ✅ garante compatibilidade com backend legado
+    params.includeInactive = 1;
   }
 
   const res = await api.get(

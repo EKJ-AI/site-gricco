@@ -1,0 +1,553 @@
+/* padrao.css */
+/* Padrão visual de telas de formulário (cards, header, inputs, botões e switch) */
+
+:root {
+  --pf-navy: #0e1b4d;
+  --pf-text: #1f2937;
+  --pf-muted: #6b7280;
+
+  --pf-border: #e6e6e6;
+  --pf-input-border: #ededed;
+  --pf-surface: #ffffff;
+  --pf-soft: #f6f6f6;
+
+  --pf-primary: #ff4d1a;
+
+  --pf-radius-lg: 14px;
+  --pf-radius-md: 10px;
+  --pf-radius-sm: 8px;
+
+  --pf-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+/* Página centralizada, estilo “modal/painel” */
+.pf-page {
+  /* min-height: 100vh; */
+  /* background: #fff; */
+  max-width: 1440px;
+  width: 100%;
+  place-self: center;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 18px;
+  color: var(--pf-text);
+}
+
+.pf-shell {
+  /* width: min(440px, 100%); */
+  width: 100%;
+  background: transparent;
+}
+
+/* Header (ícone, título, subtítulo, fechar) */
+.pf-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pf-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pf-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--pf-border);
+  background: var(--pf-surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pf-muted);
+  flex: 0 0 auto;
+}
+
+.pf-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pf-navy);
+  line-height: 1.2;
+}
+
+.pf-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--pf-muted);
+}
+
+.pf-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.pf-close:hover {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Form */
+.pf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Cards/seções */
+.pf-section {
+  border: 1px solid var(--pf-border);
+  background: var(--pf-surface);
+  border-radius: var(--pf-radius-lg);
+  padding: 14px;
+  box-shadow: none;
+}
+
+/* Labels e campos */
+.pf-form label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pf-navy);
+  margin-bottom: 10px;
+}
+
+.pf-form input,
+.pf-form select,
+.pf-form textarea {
+  width: 100%;
+  height: 40px;
+  padding: 10px 12px;
+  border: 1px solid var(--pf-input-border);
+  border-radius: var(--pf-radius-sm);
+  background: #fff;
+  color: var(--pf-text);
+  font-size: 13px;
+  outline: none;
+}
+
+.pf-form textarea {
+  min-height: 88px;
+  height: auto;
+  resize: vertical;
+  padding-top: 10px;
+}
+
+.pf-form input::placeholder,
+.pf-form textarea::placeholder {
+  color: #b9b9b9;
+}
+
+.pf-form input:focus,
+.pf-form select:focus,
+.pf-form textarea:focus {
+  border-color: rgba(14, 27, 77, 0.25);
+  box-shadow: 0 0 0 3px rgba(14, 27, 77, 0.10);
+}
+
+.pf-form input:disabled,
+.pf-form select:disabled,
+.pf-form textarea:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+/* Grids (compatível com suas .grid-2/.grid-3) */
+.pf-grid-2,
+.pf-form .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.pf-grid-3,
+.pf-form .grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 560px) {
+  .pf-grid-2,
+  .pf-form .grid-2,
+  .pf-grid-3,
+  .pf-form .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Input + botão de busca (lupa) */
+.pf-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.pf-icon-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: var(--pf-radius-sm);
+  border: 0;
+  /* background: var(--pf-navy); */
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.pf-icon-btn:hover {
+  filter: brightness(1.05);
+}
+.pf-icon-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Linha “switch” (Empresa ativa / Estabelecimento ativo) */
+.pf-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--pf-soft);
+  border-radius: var(--pf-radius-md);
+}
+
+.pf-switch-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pf-navy);
+  margin: 0;
+}
+
+/* Switch (use: <input type="checkbox" className="pf-switch" />) */
+.pf-switch {
+  appearance: none !important;
+  width: 46px !important;
+  height: 26px !important;
+  border-radius: 999px !important;
+  background: #e5e7eb !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: background 0.18s ease !important;
+  outline: none !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.pf-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: left 0.18s ease;
+}
+
+.pf-switch:checked {
+  background: rgba(14, 27, 77, 0.25);
+  border-color: rgba(14, 27, 77, 0.18);
+}
+
+.pf-switch:checked::after {
+  left: 25px;
+}
+
+.pf-switch:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Rodapé de ações */
+.pf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 10px;
+}
+
+.pf-btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--pf-radius-md);
+  border: 1px solid transparent;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pf-btn-secondary {
+  background: #fff;
+  color: var(--pf-navy);
+}
+.pf-btn-secondary:hover {
+  background: #f3f4ff;
+}
+
+.pf-btn-primary {
+  background: var(--pf-primary);
+  color: #fff;
+  box-shadow: var(--pf-shadow);
+}
+.pf-btn-primary:hover {
+  filter: brightness(1.02);
+}
+.pf-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Mensagem de erro (compatível com seu .error-message) */
+.pf-error,
+.pf-shell .error-message {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  border-radius: var(--pf-radius-md);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+/* Ajuda visual p/ inputs pequenos (ex.: Número) */
+.pf-input-sm input {
+  max-width: 110px;
+}
+
+
+/* =========================================================
+   Toast / Mensagens amigáveis (canto inferior direito)
+   Uso futuro:
+   - container: .pf-toast-viewport
+   - toast: .pf-toast + .is-success|is-error|is-warning|is-info
+   - animações: .is-enter .is-leave
+   ========================================================= */
+
+:root {
+  --pf-toast-radius: 14px;
+  --pf-toast-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  --pf-toast-border: rgba(255, 255, 255, 0.08);
+  --pf-toast-bg: rgba(17, 24, 39, 0.92); /* base escura elegante */
+  --pf-toast-text: #f9fafb;
+  --pf-toast-muted: rgba(249, 250, 251, 0.72);
+
+  --pf-toast-success: #16a34a;
+  --pf-toast-error: #ef4444;
+  --pf-toast-warning: #f59e0b;
+  --pf-toast-info: #3b82f6;
+
+  --pf-toast-accent-soft: rgba(255, 255, 255, 0.10);
+  --pf-toast-close: rgba(255, 255, 255, 0.75);
+}
+
+/* Área onde os toasts “empilham” */
+.pf-toast-viewport {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, calc(100vw - 36px));
+  pointer-events: none; /* não bloquear a tela */
+}
+
+/* Toast */
+.pf-toast {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 12px;
+  align-items: start;
+
+  padding: 12px 12px 12px 12px;
+  border-radius: var(--pf-toast-radius);
+  background: var(--pf-toast-bg);
+  color: var(--pf-toast-text);
+  box-shadow: var(--pf-toast-shadow);
+  border: 1px solid var(--pf-toast-border);
+  backdrop-filter: blur(10px);
+
+  overflow: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Faixa lateral (cor do tipo) */
+.pf-toast-accent {
+  width: 10px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pf-toast-info);
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+}
+
+/* Conteúdo */
+.pf-toast-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  color: var(--pf-toast-text);
+  line-height: 1.2;
+}
+
+.pf-toast-message {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  color: var(--pf-toast-muted);
+  line-height: 1.35;
+}
+
+.pf-toast-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Botão fechar */
+.pf-toast-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--pf-toast-close);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 10px;
+  line-height: 1;
+  font-size: 18px;
+}
+.pf-toast-close:hover {
+  background: var(--pf-toast-accent-soft);
+  color: #fff;
+}
+
+/* Botão de ação (opcional) */
+.pf-toast-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.pf-toast-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Barra de tempo (opcional) */
+.pf-toast-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.10);
+}
+.pf-toast-progress > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: currentColor; /* usa cor do tipo */
+  transform-origin: left;
+  animation: pfToastProgress linear forwards;
+}
+
+/* Tipos */
+.pf-toast.is-success {
+  color: var(--pf-toast-success);
+}
+.pf-toast.is-success .pf-toast-accent {
+  background: var(--pf-toast-success);
+  box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.16);
+}
+
+.pf-toast.is-error {
+  color: var(--pf-toast-error);
+}
+.pf-toast.is-error .pf-toast-accent {
+  background: var(--pf-toast-error);
+  box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.16);
+}
+
+.pf-toast.is-warning {
+  color: var(--pf-toast-warning);
+}
+.pf-toast.is-warning .pf-toast-accent {
+  background: var(--pf-toast-warning);
+  box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.16);
+}
+
+.pf-toast.is-info {
+  color: var(--pf-toast-info);
+}
+.pf-toast.is-info .pf-toast-accent {
+  background: var(--pf-toast-info);
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.16);
+}
+
+/* Entrada / saída (classes controladas no React) */
+.pf-toast.is-enter {
+  animation: pfToastIn 220ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.pf-toast.is-leave {
+  animation: pfToastOut 180ms ease-in both;
+}
+
+@keyframes pfToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes pfToastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* Progresso: animação controlada por duration (inline style no React) */
+@keyframes pfToastProgress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* Responsivo: em telas pequenas, centraliza e ocupa mais largura */
+@media (max-width: 560px) {
+  .pf-toast-viewport {
+    left: 18px;
+    right: 18px;
+    width: auto;
+  }
+}

@@ -2,12 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/contexts/AuthContext';
-import {
-  createEstablishment,
-  getEstablishment,
-  updateEstablishment,
-} from '../api/establishments';
+import { createEstablishment, getEstablishment, updateEstablishment } from '../api/establishments';
 import EstablishmentForm from './EstablishmentForm.jsx';
+
+import '../../../../shared/styles/padrao.css';
+
+import { useToast, extractErrorMessage } from '../../../../shared/components/toast/ToastProvider';
 
 export default function EstablishmentFormPage() {
   const { companyId, establishmentId } = useParams();
@@ -15,41 +15,32 @@ export default function EstablishmentFormPage() {
 
   const { accessToken } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
-  const [initialData, setInitialData] = useState(
-    mode === 'create' ? {} : null
-  );
+  const [initialData, setInitialData] = useState(mode === 'create' ? {} : null);
   const [loading, setLoading] = useState(mode === 'edit');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [effectiveCompanyId, setEffectiveCompanyId] = useState(companyId || null);
 
   useEffect(() => {
-    // criação: não precisa carregar nada
     if (mode !== 'edit') {
       setLoading(false);
       return;
     }
 
-    // edição mas sem params => erro de rota
     if (!companyId || !establishmentId) {
-      console.error(
-        '[EstablishmentFormPage] missing params',
-        { companyId, establishmentId }
-      );
-      setError('Parâmetros de rota inválidos para edição de estabelecimento.');
+      toast.error('Parâmetros de rota inválidos para edição de estabelecimento.', { title: 'Erro de rota' });
       setLoading(false);
       return;
     }
 
     if (!accessToken) {
-      setError('Sessão expirada. Faça login novamente.');
+      toast.warning('Sessão expirada. Faça login novamente.', { title: 'Sessão' });
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    setError('');
 
     getEstablishment(companyId, establishmentId, accessToken)
       .then((data) => {
@@ -58,60 +49,62 @@ export default function EstablishmentFormPage() {
       })
       .catch((e) => {
         console.error('[EstablishmentFormPage] getEstablishment error', e);
-        setError('Failed to load establishment.');
+        toast.error(extractErrorMessage(e, 'Failed to load establishment.'), { title: 'Falha ao carregar' });
       })
       .finally(() => setLoading(false));
-  }, [mode, companyId, establishmentId, accessToken]);
+  }, [mode, companyId, establishmentId, accessToken, toast]);
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
-    setError('');
 
     try {
       if (mode === 'edit' && establishmentId) {
         const cid = effectiveCompanyId || companyId;
         await updateEstablishment(cid, establishmentId, payload, accessToken);
       } else {
-        if (!companyId) {
-          throw new Error('Missing companyId in route for create');
-        }
+        if (!companyId) throw new Error('Missing companyId in route for create');
         await createEstablishment(companyId, payload, accessToken);
       }
 
+      toast.success('Estabelecimento salvo com sucesso.', { title: 'Salvo' });
+
       const redirectCompanyId = effectiveCompanyId || companyId;
-      if (redirectCompanyId) {
-        navigate(`/companies/${redirectCompanyId}`);
-      } else {
-        navigate('/companies');
-      }
+      navigate(redirectCompanyId ? `/companies/${redirectCompanyId}` : '/companies');
     } catch (e) {
       console.error('[EstablishmentFormPage] submit error', e);
-      setError('Failed to save establishment.');
+      toast.error(extractErrorMessage(e, 'Failed to save establishment.'), { title: 'Não foi possível salvar' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container">
-        <h2>{mode === 'edit' ? 'Edit Establishment' : 'New Establishment'}</h2>
-        <div>Loading…</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container">
-      <h2>{mode === 'edit' ? 'Edit Establishment' : 'New Establishment'}</h2>
-      {error && <div className="error-message">{error}</div>}
+    <div className="pf-page">
+      <div className="pf-shell">
+        <header className="pf-header">
+          <div className="pf-header-left">
+            <div className="pf-header-icon">▦</div>
+            <div>
+              <h1 className="pf-title">{mode === 'edit' ? 'Edit Establishment' : 'New Establishment'}</h1>
+              <p className="pf-subtitle">Register your establishment here</p>
+            </div>
+          </div>
+          <button type="button" className="pf-close" onClick={() => navigate(-1)} aria-label="Close">
+            ×
+          </button>
+        </header>
 
-      <EstablishmentForm
-        initialData={initialData || {}}
-        onSubmit={handleSubmit}
-        submitting={submitting}
-        readOnly={false}
-      />
+        {loading && <div className="pf-section">Loading…</div>}
+
+        {!loading && (
+          <EstablishmentForm
+            initialData={initialData || {}}
+            onSubmit={handleSubmit}
+            submitting={submitting}
+            readOnly={false}
+          />
+        )}
+      </div>
     </div>
   );
 }

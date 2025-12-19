@@ -2,16 +2,23 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
+  border: 1px solid #efefef;
 }
 
 .data-table th, .data-table td {
-  border: 1px solid #ddd;
+  /* border: 1px solid #ddd; */
   padding: 8px;
+}
+.data-table td {
+  background-color: #fff;
+  font-size: 14px;
+  color:#141B4D;
 }
 
 .data-table th {
-  background-color: #0066cc;
-  color: white;
+  background-color: #efefef;
+  /* color: white; */
+  font-size: 10px;
 }
 
 .data-table tr:nth-child(even) {
@@ -21,6 +28,11 @@
 .data-table tr:hover {
   background-color: #f1f1f1;
 }
+
+.data-table tbody tr {
+  border: 1px dotted #ddd;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;
@@ -41,4 +53,14 @@
 .btn-delete {
   background-color: #F44336;
   color: white;
+}
+
+@media (max-width: 767px) {
+  .data-table td, .data-table th {
+    display: none !important;
+  }
+  .data-table .mostrar-mobile,
+  .data-table .mostrar-mobile {
+    display: table-cell !important;
+  }
 }
