@@ -2,11 +2,7 @@ import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
 import bcrypt from 'bcrypt';
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
-import {
-  signJwt,
-  signRefreshJwt,
-  verifyRefreshJwt,
-} from '../../utils/jwt.js';
+import { signJwt, signRefreshJwt, verifyRefreshJwt } from '../../utils/jwt.js';
 
 // Opções de cookie reaproveitáveis (use MESMAS opções no clearCookie)
 const REFRESH_COOKIE_NAME = 'refreshToken';
@@ -14,45 +10,12 @@ const isProd = process.env.NODE_ENV === 'production';
 
 const REFRESH_COOKIE_OPTS = {
   httpOnly: true,
-  secure: isProd, // em dev (http://localhost) precisa ser false
-  sameSite: isProd ? 'none' : 'lax', // 'none' só faz sentido em cross-site + HTTPS
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000,
-  ...(isProd ? { domain: '.gricco.com.br' } : {}), // só seta domain em prod
+  ...(isProd ? { domain: '.gricco.com.br' } : {}),
 };
-
-// Helper exportado: pega um vínculo de Employee para este usuário de portal
-export async function getPortalContextForUser(userId) {
-  // Só considera vínculos totalmente ativos:
-  // - Employee.isActive = true
-  // - Establishment.isActive = true
-  // - Company.isActive = true
-  const emp = await prisma.employee.findFirst({
-    where: {
-      portalUserId: userId,
-      isActive: true,
-      establishment: {
-        isActive: true,
-        company: {
-          isActive: true,
-        },
-      },
-    },
-    select: {
-      id: true,
-      companyId: true,
-      establishmentId: true,
-    },
-  });
-
-  if (!emp) return null;
-
-  return {
-    employeeId: emp.id,
-    companyId: emp.companyId,
-    establishmentId: emp.establishmentId,
-  };
-}
 
 /**
  * @swagger
@@ -121,15 +84,7 @@ export async function login(req, res) {
       data: { refreshToken },
     });
 
-    const permissions = user.profile.permissions.map(
-      (p) => p.permission.name,
-    );
-
-    const isGlobalAdmin = permissions.includes('system.admin.global');
-    const isCompanyAdmin = isGlobalAdmin || permissions.includes('company.admin');
-
-    // Contexto de colaborador de portal (se existir)
-    const portalContext = await getPortalContextForUser(user.id);
+    const permissions = user.profile.permissions.map((p) => p.permission.name);
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTS);
 
@@ -140,15 +95,12 @@ export async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        isGlobalAdmin,
-        isCompanyAdmin,
         profile: {
           id: user.profile.id,
           name: user.profile.name,
           permissions,
         },
       },
-      portalContext, // usado pelo frontend para redirecionar colaborador
     });
   } catch (err) {
     logger.error('[AUTH] Login error', err);
@@ -160,9 +112,7 @@ export async function login(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -175,7 +125,6 @@ export async function login(req, res) {
  */
 export async function refresh(req, res) {
   try {
-    // 🔒 Aceite SOMENTE do cookie para evitar abuso via body
     const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
     if (!refreshToken) {
       logger.warn('[AUTH] Refresh failed: no refreshToken cookie');
@@ -187,10 +136,7 @@ export async function refresh(req, res) {
 
     const decoded = verifyRefreshJwt(refreshToken);
     if (!decoded) {
-      logger.warn(
-        '[AUTH] Refresh token inválido ou expirado (JWT inválido)',
-      );
-      // Limpa cookie para não ficar tentando em loop
+      logger.warn('[AUTH] Refresh token inválido ou expirado (JWT inválido)');
       res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
       return res.status(401).json({
         success: false,
@@ -210,10 +156,7 @@ export async function refresh(req, res) {
     });
 
     if (!user || !user.refreshToken || user.refreshToken !== refreshToken) {
-      logger.warn(
-        `[AUTH] Refresh token não confere no banco para userId ${decoded.sub}`,
-      );
-      // Zera no banco por segurança e limpa cookie
+      logger.warn(`[AUTH] Refresh token não confere no banco para userId ${decoded.sub}`);
       await prisma.user
         .update({
           where: { id: decoded.sub },
@@ -221,16 +164,12 @@ export async function refresh(req, res) {
         })
         .catch(() => {});
       res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
-      return res
-        .status(401)
-        .json({ success: false, message: 'Refresh token inválido' });
+      return res.status(401).json({ success: false, message: 'Refresh token inválido' });
     }
 
     // ✅ Bloqueia refresh para usuário inativo
     if (!user.isActive) {
-      logger.warn(
-        `[AUTH] Refresh blocked: user inactive for userId ${user.id}`,
-      );
+      logger.warn(`[AUTH] Refresh blocked: user inactive for userId ${user.id}`);
 
       await prisma.user
         .update({
@@ -241,12 +180,9 @@ export async function refresh(req, res) {
 
       res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
 
-      return res
-        .status(403)
-        .json({ success: false, message: 'Usuário inativo' });
+      return res.status(403).json({ success: false, message: 'Usuário inativo' });
     }
 
-    // Rotaciona ambos os tokens
     const newAccessToken = signJwt({
       sub: user.id,
       email: user.email,
@@ -259,14 +195,7 @@ export async function refresh(req, res) {
       data: { refreshToken: newRefreshToken },
     });
 
-    const permissions = user.profile.permissions.map(
-      (p) => p.permission.name,
-    );
-
-    const isGlobalAdmin = permissions.includes('system.admin.global');
-    const isCompanyAdmin = isGlobalAdmin || permissions.includes('company.admin');
-
-    const portalContext = await getPortalContextForUser(user.id);
+    const permissions = user.profile.permissions.map((p) => p.permission.name);
 
     res.cookie(REFRESH_COOKIE_NAME, newRefreshToken, REFRESH_COOKIE_OPTS);
 
@@ -277,19 +206,15 @@ export async function refresh(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        isGlobalAdmin,
-        isCompanyAdmin,
         profile: {
           id: user.profile.id,
           name: user.profile.name,
           permissions,
         },
       },
-      portalContext, // frontend consegue hidratar colaborador sem relogar
     });
   } catch (err) {
     logger.error('[AUTH] Refresh error', err);
-    // Em qualquer erro inesperado, limpe o cookie para parar loops de refresh
     res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
@@ -299,9 +224,7 @@ export async function refresh(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -319,7 +242,6 @@ export async function logout(req, res) {
     if (refreshToken) {
       const decoded = verifyRefreshJwt(refreshToken);
       if (decoded?.sub) {
-        // Invalida o token salvo no banco
         await prisma.user.update({
           where: { id: decoded.sub },
           data: { refreshToken: null },
@@ -327,13 +249,11 @@ export async function logout(req, res) {
       }
     }
 
-    // Limpa o cookie SEMPRE usando as MESMAS opções
     res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
 
     return res.json({ success: true, message: 'Logout efetuado' });
   } catch (err) {
     logger.error('[AUTH] Logout error', err);
-    // Mesmo em erro, limpe o cookie para não manter sessão
     res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTS);
     const mapped = prismaErrorToHttp(err);
     if (mapped) {
@@ -343,8 +263,6 @@ export async function logout(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }

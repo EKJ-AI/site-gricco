@@ -1,11 +1,6 @@
-// src/modules/permission/permissions.middleware.js
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
 
-// Normaliza o parâmetro exigido:
-// - string -> { all: [string], any: [] }
-// - array  -> { all: array,  any: [] }
-// - objeto -> { all?: string[], any?: string[] }
 function normalizeRequired(required) {
   if (required == null) return { all: [], any: [] };
   if (typeof required === 'string') return { all: [required], any: [] };
@@ -15,17 +10,14 @@ function normalizeRequired(required) {
     const any = Array.isArray(required.any) ? required.any.filter(Boolean) : [];
     return { all, any };
   }
-  // fallback defensivo
   return { all: [], any: [] };
 }
 
 async function resolveUserPermissions(req) {
-  // 1) Se já estiverem no token/contexto
   if (Array.isArray(req.user?.permissions)) {
     return req.user.permissions.map(String);
   }
 
-  // 2) Busca via profile -> profilePermission -> permission
   if (req.user?.profileId) {
     const profile = await prisma.profile.findUnique({
       where: { id: req.user.profileId },
@@ -38,9 +30,7 @@ async function resolveUserPermissions(req) {
 
     if (!profile) return [];
     return (
-      profile.permissions
-        ?.map((pp) => pp.permission?.name)
-        .filter(Boolean) || []
+      profile.permissions?.map((pp) => pp.permission?.name).filter(Boolean) || []
     );
   }
 
@@ -49,9 +39,9 @@ async function resolveUserPermissions(req) {
 
 /**
  * Uso:
- * authorizePermissions('company.create')
- * authorizePermissions(['company.create', 'company.update'])
- * authorizePermissions({ all: ['company.update'], any: ['company.manage', 'admin'] })
+ * authorizePermissions('user.create')
+ * authorizePermissions(['user.create', 'user.update'])
+ * authorizePermissions({ all: ['user.update'], any: ['permission.manage'] })
  */
 export function authorizePermissions(required) {
   const norm = normalizeRequired(required);
@@ -74,30 +64,16 @@ export function authorizePermissions(required) {
       ]
         .filter(Boolean)
         .join(' + ');
-      logger.info(
-        `[AUTHORIZE] Permissões exigidas: ${reqDesc || '(nenhuma)'}`,
-      );
+
+      logger.info(`[AUTHORIZE] Permissões exigidas: ${reqDesc || '(nenhuma)'}`);
 
       const userPermissions = await resolveUserPermissions(req);
       logger.info(
-        `[AUTHORIZE] Permissões do usuário: ${
-          userPermissions.join(', ') || '(vazio)'
-        }`,
+        `[AUTHORIZE] Permissões do usuário: ${userPermissions.join(', ') || '(vazio)'}`,
       );
 
-      // 🔑 Curto-circuito: Admin Global tem tudo
-      if (userPermissions.includes('system.admin.global')) {
-        logger.info(
-          '[AUTHORIZE] Usuário possui system.admin.global – acesso liberado ✅',
-        );
-        return next();
-      }
-
-      // Se nada for exigido, libera
       if (all.length === 0 && any.length === 0) {
-        logger.info(
-          '[AUTHORIZE] Nenhuma permissão exigida, acesso liberado ✅',
-        );
+        logger.info('[AUTHORIZE] Nenhuma permissão exigida, acesso liberado ✅');
         return next();
       }
 
@@ -114,10 +90,11 @@ export function authorizePermissions(required) {
       const missingAny = any.length > 0 && !hasAny ? any : [];
 
       logger.warn(
-        `[AUTHORIZE] Permissão insuficiente. Faltam (ALL): ${
-          missingAll.join(', ') || '-'
-        }; (ANY): ${missingAny.join(', ') || '-'}`,
+        `[AUTHORIZE] Permissão insuficiente. Faltam (ALL): ${missingAll.join(', ') || '-'}; (ANY): ${
+          missingAny.join(', ') || '-'
+        }`,
       );
+
       return res.status(403).json({
         success: false,
         message: 'Permissão insuficiente',

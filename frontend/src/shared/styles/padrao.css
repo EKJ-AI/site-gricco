@@ -551,3 +551,31 @@
     width: auto;
   }
 }
+
+/* =========================================================
+   ✅ FIX: Checkboxes / Radios não podem herdar o input padrão
+   (senão viram 100% largura e 40px altura, quebrando listas)
+   ========================================================= */
+.pf-form input[type="checkbox"]:not(.pf-switch),
+.pf-form input[type="radio"] {
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border-radius: 4px;
+}
+
+/* Itens de permissão (lista/grade) */
+.pf-form .pf-perm-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 8px 0;
+  font-weight: 600;
+  color: var(--pf-navy);
+}
+
+.pf-form .pf-perm-item span {
+  font-size: 12px;
+  font-weight: 700;
+}

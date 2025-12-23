@@ -26,18 +26,6 @@ import email from './modules/email/email.routes.js';
 import translationRoutes from './modules/translation/translation.routes.js';
 import publicI18nRoutes from './modules/translation/public-i18n.routes.js';
 
-// Companies / Establishments / Org
-import companyRoutes from './modules/companies/company.routes.js';
-
-// Document Types
-import documentTypeRoutes from './modules/companies/establishments/documents/documentType.routes.js';
-
-// Catálogos (CNAE, CBO, CEP, CNPJ)
-import catalogRoutes from './modules/companies/establishments/catalogs/catalog.routes.js';
-
-// 🔹 Logs de acesso a documentos (VIEW / DOWNLOAD / UPLOAD)
-import documentAccessRoutes from './modules/companies/establishments/documents/documentAccess.routes.js';
-
 import blogRoutes from './modules/blog/blog.routes.js';
 
 import config from './config/index.js';
@@ -61,15 +49,9 @@ i18next
 
 const app = express();
 
-// ---------------- Static uploads (documentos, versões etc.) ----------------
-const uploadsDir = path.join(process.cwd(), 'uploads');
-// Ex: http://localhost:3000/uploads/empresa/estabelecimento/documento/versao/arquivo.pdf
-app.use('/uploads', express.static(uploadsDir));
-
 // --------------- Request ID ---------------
 app.use((req, res, next) => {
-  const rid =
-    req.get('X-Request-Id') || Math.random().toString(36).slice(2);
+  const rid = req.get('X-Request-Id') || Math.random().toString(36).slice(2);
   res.setHeader('X-Request-Id', rid);
   req.requestId = rid;
   next();
@@ -134,10 +116,7 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 const forgotLimiter = rateLimit({
-  windowMs: parseInt(
-    process.env.FORGOT_LIMIT_WINDOW_MS || '900000',
-    10,
-  ),
+  windowMs: parseInt(process.env.FORGOT_LIMIT_WINDOW_MS || '900000', 10),
   max: parseInt(process.env.FORGOT_LIMIT_MAX || '5', 10),
   message:
     'Muitas tentativas de recuperação de senha. Tente novamente mais tarde.',
@@ -159,18 +138,6 @@ app.use('/api/email', email);
 app.use('/api/translations', translationRoutes);
 app.use('/api/public', publicI18nRoutes);
 
-// Companies / Establishments (aninhado em company.routes.js)
-app.use('/api/companies', companyRoutes);
-
-// Document Types (usado pelo frontend em /api/documentTypes)
-app.use('/api/documentTypes', documentTypeRoutes);
-
-// Catálogos (CNAE, CBO, CEP, CNPJ)
-app.use('/api/catalogs', catalogRoutes);
-
-// 🔹 Logs de acesso a documentos (VIEW/DOWNLOAD/UPLOAD + resumo por usuário)
-app.use('/api', documentAccessRoutes);
-
 // 🔹 Blog / CMS
 app.use('/api/blog', blogRoutes);
 
@@ -188,6 +155,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // --------------- i18n middleware ---------------
+// (mantido no fim, como estava; se quiser req.t nas rotas, mover pra cima)
 app.use(middleware.handle(i18next));
 
 // --------------- 404 handler (JSON) ---------------
@@ -201,14 +169,10 @@ app.use((req, res) => {
 // --------------- Error handler global ---------------
 app.use((err, req, res, next) => {
   logger.error(
-    `❌ [UNHANDLED] ${req.method} ${req.originalUrl} • ${
-      err.stack || err
-    }`,
+    `❌ [UNHANDLED] ${req.method} ${req.originalUrl} • ${err.stack || err}`,
   );
   if (res.headersSent) return next(err);
-  res
-    .status(500)
-    .json({ success: false, message: 'Internal server error' });
+  res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
 // --------------- Boot ---------------
@@ -217,11 +181,8 @@ if (!config.jwtSecret || !config.refreshSecret) {
   process.exit(1);
 }
 
-const listenHost =
-  process.env.NODE_ENV !== 'production' ? '0.0.0.0' : '127.0.0.1';
+const listenHost = process.env.NODE_ENV !== 'production' ? '0.0.0.0' : '127.0.0.1';
 
 app.listen(config.port, listenHost, () => {
-  logger.info(
-    `🚀 Server rodando em http://${listenHost}:${config.port}`,
-  );
+  logger.info(`🚀 Server rodando em http://${listenHost}:${config.port}`);
 });

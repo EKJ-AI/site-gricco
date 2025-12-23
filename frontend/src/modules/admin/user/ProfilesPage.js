@@ -1,229 +1,323 @@
-import React, { useEffect, useState } from 'react';
-import '../../../shared/styles/Form.css';
-import '../../../shared/styles/Table.css';
-import { useAuth } from '../../auth/contexts/AuthContext';
+// src/modules/admin/user/ProfilesPage.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
+import { useAuth } from '../../auth/contexts/AuthContext';
+
+import '../../../shared/styles/Table.css';
+import '../../../shared/styles/padrao.css';
+
+import { useToast, extractErrorMessage } from '../../../shared/components/toast/ToastProvider';
+import ConfirmModal from '../../../shared/components/modals/ConfirmModal';
+
+const COLS = {
+  NAME: 'name',
+  DESCRIPTION: 'description',
+  PERMISSIONS: 'permissions',
+};
 
 export default function ProfilesPage() {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
 
   const [profiles, setProfiles] = useState([]);
-  const [permissions, setPermissions] = useState([]);
-  const [selectedPermissions, setSelectedPermissions] = useState([]);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  // ----- filtros por coluna -----
+  const [nameFilter, setNameFilter] = useState('');
+  const [descriptionFilter, setDescriptionFilter] = useState('');
+  const [permissionFilter, setPermissionFilter] = useState(''); // filtra por nome da permissão
+
+  // ----- controle de UI dos filtros -----
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [openFilterCols, setOpenFilterCols] = useState(() => ({
+    [COLS.NAME]: false,
+    [COLS.DESCRIPTION]: false,
+    [COLS.PERMISSIONS]: false,
+  }));
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [profileToDelete, setProfileToDelete] = useState(null);
 
   const authHeader = { headers: { Authorization: `Bearer ${accessToken}` } };
 
   const fetchProfiles = async () => {
+    setLoading(true);
     try {
       const res = await api.get('/api/profiles', authHeader);
       setProfiles(res.data?.data?.items || []);
-    } catch {
-      setError('Erro ao carregar perfis.');
-    }
-  };
-
-  const fetchPermissions = async () => {
-    try {
-      // ✅ pega todas as permissões sem paginação
-      const res = await api.get('/api/permissions', {
-        ...authHeader,
-        params: { all: 1 },
-      });
-      setPermissions(res.data?.data?.items || []);
-    } catch {
-      setError('Erro ao carregar permissões.');
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Erro ao carregar perfis.'), { title: 'Erro' });
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchProfiles();
-    fetchPermissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePermissionToggle = (id) => {
-    setSelectedPermissions((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+  const toggleColFilter = (colKey) => {
+    setFiltersVisible(true);
+    setOpenFilterCols((prev) => ({ ...prev, [colKey]: !prev[colKey] }));
+  };
+
+  const showAllFilters = () => {
+    setFiltersVisible(true);
+    setOpenFilterCols({
+      [COLS.NAME]: true,
+      [COLS.DESCRIPTION]: true,
+      [COLS.PERMISSIONS]: true,
+    });
+  };
+
+  const hideAllFilters = () => {
+    setFiltersVisible(false);
+    setOpenFilterCols({
+      [COLS.NAME]: false,
+      [COLS.DESCRIPTION]: false,
+      [COLS.PERMISSIONS]: false,
+    });
+  };
+
+  const clearAllFilters = () => {
+    setNameFilter('');
+    setDescriptionFilter('');
+    setPermissionFilter('');
+  };
+
+  const hasAnyFilter = !!nameFilter || !!descriptionFilter || !!permissionFilter;
+
+  const filteredRows = useMemo(() => {
+    const norm = (v) => String(v || '').toLowerCase();
+
+    return (profiles || []).filter((p) => {
+      const name = norm(p.name);
+      const description = norm(p.description);
+
+      const permNames = Array.isArray(p.permissions)
+        ? p.permissions.map((x) => x?.name).filter(Boolean).join(' ')
+        : '';
+      const permText = norm(permNames);
+
+      if (nameFilter && !name.includes(norm(nameFilter))) return false;
+      if (descriptionFilter && !description.includes(norm(descriptionFilter))) return false;
+      if (permissionFilter && !permText.includes(norm(permissionFilter))) return false;
+
+      return true;
+    });
+  }, [profiles, nameFilter, descriptionFilter, permissionFilter]);
+
+  const handleEdit = (profile) => {
+    navigate(`/profiles/edit/${profile.id}`, { state: { profile } });
+  };
+
+  const askDelete = (profile) => {
+    setProfileToDelete(profile);
+    setConfirmOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!profileToDelete?.id) return;
+
+    setDeleting(true);
+    try {
+      await api.delete(`/api/profiles/${profileToDelete.id}`, authHeader);
+      toast.success('Perfil excluído.', { title: 'OK' });
+      setConfirmOpen(false);
+      setProfileToDelete(null);
+      fetchProfiles();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Erro ao excluir perfil.'), { title: 'Não foi possível excluir' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const HeaderCell = ({ colKey, label, mobile = false }) => {
+    const active = !!openFilterCols[colKey];
+    return (
+      <th
+        className={mobile ? 'mostrar-mobile' : undefined}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+        title="Clique para abrir/fechar o filtro desta coluna"
+        onClick={() => toggleColFilter(colKey)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{label}</span>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>{active ? '▾' : '▸'}</span>
+        </div>
+      </th>
     );
   };
 
-  const resetForm = () => {
-    setName('');
-    setDescription('');
-    setSelectedPermissions([]);
-    setIsEditing(false);
-    setEditingId(null);
-    setError('');
-  };
-
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      await api.post(
-        '/api/profiles',
-        { name, description, permissions: selectedPermissions },
-        authHeader
-      );
-      resetForm();
-      fetchProfiles();
-    } catch {
-      setError('Erro ao criar perfil.');
-    }
-  };
-
-  const handleEditClick = async (profile) => {
-    if (!permissions || permissions.length === 0) {
-      try {
-        await fetchPermissions();
-      } catch {
-        setError('Erro ao carregar permissões para edição.');
-        return;
-      }
-    }
-
-    setIsEditing(true);
-    setEditingId(profile.id);
-    setName(profile.name || '');
-    setDescription(profile.description || '');
-
-    const ids = (profile.permissions || [])
-      .map((pp) => (typeof pp === 'object' && pp?.id ? pp.id : null))
-      .filter(Boolean);
-
-    setSelectedPermissions(ids);
-  };
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    if (!editingId) return;
-    setError('');
-    try {
-      await api.put(
-        `/api/profiles/${editingId}`,
-        { name, description, permissions: selectedPermissions },
-        authHeader
-      );
-      resetForm();
-      fetchProfiles();
-    } catch {
-      setError('Erro ao atualizar perfil.');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    resetForm();
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Confirmar exclusão?')) return;
-    try {
-      await api.delete(`/api/profiles/${id}`, authHeader);
-      fetchProfiles();
-    } catch {
-      setError('Erro ao excluir perfil.');
-    }
-  };
-
   return (
-    <div>
-      <h2>Perfis</h2>
-
-      {error && <div className="error-message">{error}</div>}
-
-      <form onSubmit={isEditing ? handleUpdate : handleCreate} className="form">
-        <h3>{isEditing ? 'Editar perfil' : 'Criar novo perfil'}</h3>
-
-        <input
-          type="text"
-          placeholder="Nome"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-
-        <input
-          type="text"
-          placeholder="Descrição"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-
-        {(!permissions || permissions.length === 0) ? (
-          <div>Carregando permissões...</div>
-        ) : (
-          <div className="permissions-list">
-            <label>Permissões:</label>
-            {permissions.map((p) => (
-              <div key={p.id}>
-                <input
-                  type="checkbox"
-                  checked={selectedPermissions.includes(p.id)}
-                  onChange={() => handlePermissionToggle(p.id)}
-                />
-                {p.name}
-              </div>
-            ))}
+    <div className="pf-page">
+      <div className="pf-shell">
+        <header className="pf-header">
+          <div className="pf-header-left">
+            <div className="pf-header-icon">🛡️</div>
+            <div>
+              <h1 className="pf-title">Perfis</h1>
+              <p className="pf-subtitle">Gerencie perfis e permissões</p>
+            </div>
           </div>
-        )}
 
-        {isEditing ? (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit">Salvar alterações</button>
-            <button type="button" className="secondary" onClick={handleCancelEdit}>
-              Cancelar
+          <button type="button" className="pf-btn pf-btn-primary" onClick={() => navigate('/profiles/new')}>
+            + Novo perfil
+          </button>
+        </header>
+
+        <section className="pf-section">
+          {/* Barra de ações dos filtros (padrão do seu modelo) */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              flexWrap: 'wrap',
+              marginTop: 8,
+            }}
+          >
+            <button
+              type="button"
+              className="pf-btn pf-btn-secondary"
+              onClick={() => (filtersVisible ? hideAllFilters() : showAllFilters())}
+            >
+              {filtersVisible ? 'Ocultar filtros' : 'Filtros'}
+            </button>
+
+            <button
+              type="button"
+              className="pf-btn pf-btn-secondary"
+              onClick={clearAllFilters}
+              disabled={!hasAnyFilter}
+              title="Limpa todos os filtros"
+            >
+              Limpar
             </button>
           </div>
-        ) : (
-          <button type="submit">Criar</button>
-        )}
-      </form>
 
-      <h3>Lista de Perfis</h3>
+          <div style={{ marginTop: 12 }}>
+            {loading ? (
+              <div>Carregando…</div>
+            ) : (
+              <table className="data-table" style={{ marginTop: 8 }}>
+                <thead>
+                  <tr>
+                    <HeaderCell colKey={COLS.NAME} label="Nome" mobile />
+                    <HeaderCell colKey={COLS.DESCRIPTION} label="Descrição" />
+                    <HeaderCell colKey={COLS.PERMISSIONS} label="Permissões" />
+                    <th>Ações</th>
+                  </tr>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Descrição</th>
-            <th>Permissões</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(profiles || []).map((p) => (
-            <tr key={p.id}>
-              <td>{p.name}</td>
-              <td>{p.description}</td>
-              <td>
-                <ul>
-                  {(p.permissions || []).map((pp) => (
-                    <li key={typeof pp === 'object' && pp?.id ? pp.id : String(pp)}>
-                      {typeof pp === 'object' && pp?.name ? pp.name : String(pp)}
-                    </li>
+                  {filtersVisible && (
+                    <tr>
+                      {/* Nome */}
+                      <th className="mostrar-mobile">
+                        {openFilterCols[COLS.NAME] && (
+                          <input
+                            style={{ width: '100%' }}
+                            placeholder="Filtrar nome..."
+                            value={nameFilter}
+                            onChange={(e) => setNameFilter(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </th>
+
+                      {/* Descrição */}
+                      <th>
+                        {openFilterCols[COLS.DESCRIPTION] && (
+                          <input
+                            style={{ width: '100%' }}
+                            placeholder="Filtrar descrição..."
+                            value={descriptionFilter}
+                            onChange={(e) => setDescriptionFilter(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </th>
+
+                      {/* Permissões */}
+                      <th>
+                        {openFilterCols[COLS.PERMISSIONS] && (
+                          <input
+                            style={{ width: '100%' }}
+                            placeholder="Filtrar permissão (nome)..."
+                            value={permissionFilter}
+                            onChange={(e) => setPermissionFilter(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </th>
+
+                      <th />
+                    </tr>
+                  )}
+                </thead>
+
+                <tbody>
+                  {(filteredRows || []).map((p) => (
+                    <tr key={p.id}>
+                      <td className="mostrar-mobile">{p.name}</td>
+                      <td>{p.description || '—'}</td>
+                      <td>
+                        {Array.isArray(p.permissions) && p.permissions.length ? (
+                          <span>{p.permissions.length} permissão(ões)</span>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button className="btn btn-edit" onClick={() => handleEdit(p)}>
+                            Editar
+                          </button>
+                          <button className="btn btn-delete" onClick={() => askDelete(p)}>
+                            Excluir
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </ul>
-              </td>
-              <td>
-                <button
-                  onClick={() => handleEditClick(p)}
-                  disabled={!permissions || permissions.length === 0}
-                  style={{ marginRight: 8 }}
-                >
-                  Editar
-                </button>
-                <button onClick={() => handleDelete(p.id)}>Excluir</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+                  {!filteredRows.length ? (
+                    <tr>
+                      <td colSpan={4} style={{ padding: 12 }}>
+                        Nenhum perfil encontrado.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+
+        <ConfirmModal
+          open={confirmOpen}
+          title="Excluir perfil"
+          message={
+            profileToDelete
+              ? `Confirma excluir o perfil "${profileToDelete.name}"?`
+              : 'Confirma excluir este perfil?'
+          }
+          confirmLabel="Excluir"
+          cancelLabel="Cancelar"
+          loading={deleting}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => {
+            if (deleting) return;
+            setConfirmOpen(false);
+            setProfileToDelete(null);
+          }}
+        />
+      </div>
     </div>
   );
 }

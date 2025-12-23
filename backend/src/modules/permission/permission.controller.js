@@ -1,3 +1,4 @@
+// src/modules/permission/permission.controller.js
 import { parsePagination } from '../../infra/http/pagination.js';
 import prisma from '../../../prisma/client.js';
 import logger from '../../utils/logger.js';
@@ -38,7 +39,7 @@ export async function list(req, res) {
       });
     }
 
-    // modo paginado (comportamento atual)
+    // modo paginado (default)
     const { skip, take, page, pageSize } = parsePagination(req);
 
     const [total, permissions] = await Promise.all([
@@ -62,6 +63,30 @@ export async function list(req, res) {
     });
   } catch (err) {
     logger.error(`Erro ao listar permissões: ${err.message}`, err);
+    const mapped = prismaErrorToHttp(err);
+    if (mapped)
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+}
+
+export async function getById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const permission = await prisma.permission.findUnique({
+      where: { id },
+    });
+
+    if (!permission) {
+      return res.status(404).json({ success: false, message: 'Permissão não encontrada' });
+    }
+
+    return res.json({ success: true, data: permission });
+  } catch (err) {
+    logger.error(`Erro ao buscar permissão: ${err.message}`, err);
     const mapped = prismaErrorToHttp(err);
     if (mapped)
       return res
@@ -99,6 +124,57 @@ export async function create(req, res) {
     res.status(201).json({ success: true, data: permission });
   } catch (err) {
     logger.error(`Erro ao criar permissão: ${err.message}`, err);
+    const mapped = prismaErrorToHttp(err);
+    if (mapped)
+      return res
+        .status(mapped.status)
+        .json({ success: false, error: mapped.code, message: mapped.message });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+}
+
+export async function update(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+    }
+
+    // valida existência
+    const current = await prisma.permission.findUnique({ where: { id } });
+    if (!current) {
+      return res.status(404).json({ success: false, message: 'Permissão não encontrada' });
+    }
+
+    // se mudou nome, valida unique
+    if (String(current.name) !== String(name)) {
+      const exists = await prisma.permission.findUnique({ where: { name } });
+      if (exists) {
+        return res.status(400).json({ success: false, message: 'Permissão já existe' });
+      }
+    }
+
+    const permission = await prisma.permission.update({
+      where: { id },
+      data: {
+        name,
+        description,
+      },
+    });
+
+    await registerAudit({
+      userId: req.user?.id,
+      action: 'UPDATE_PERMISSION',
+      entity: 'Permission',
+      entityId: permission.id,
+      details: `Permissão atualizada: ${permission.name}`,
+    });
+
+    res.json({ success: true, data: permission, message: 'Permissão atualizada com sucesso' });
+  } catch (err) {
+    logger.error(`Erro ao atualizar permissão: ${err.message}`, err);
     const mapped = prismaErrorToHttp(err);
     if (mapped)
       return res

@@ -29,9 +29,7 @@ export async function authenticateToken(req, res, next) {
     const decoded = verifyJwt(token);
     if (!decoded) {
       logger.warn('[AUTH-MIDDLEWARE] Falha: token inválido ou expirado');
-      return res
-        .status(401)
-        .json({ message: 'Token inválido ou expirado' });
+      return res.status(401).json({ message: 'Token inválido ou expirado' });
     }
 
     logger.info(

@@ -71,18 +71,18 @@ export default function LoginPage() {
 
       console.log('Logged in user:', user, portalCtx);
 
-      if (portalCtx?.companyId && portalCtx?.establishmentId) {
-        // Colaborador de portal → vai direto para documentos do estabelecimento
-        navigate(
-          //`/companies/${portalCtx.companyId}/establishments/${portalCtx.establishmentId}/documents`
-          `/companies/${portalCtx.companyId}`
-        );
-      } else if (user?.isCompanyAdmin || user?.isGlobalAdmin) {
-        navigate('/companies');
-      } else {
+      // if (portalCtx?.companyId && portalCtx?.establishmentId) {
+      //   // Colaborador de portal → vai direto para documentos do estabelecimento
+      //   navigate(
+      //     //`/companies/${portalCtx.companyId}/establishments/${portalCtx.establishmentId}/documents`
+      //     `/companies/${portalCtx.companyId}`
+      //   );
+      // } else if (user?.isCompanyAdmin || user?.isGlobalAdmin) {
+      //   navigate('/dashboard');
+      // } else {
         // Usuário "admin" / normal → dashboard padrão
         navigate('/dashboard');
-      }
+      //}
     } catch (err) {
       console.error(err);
       setError(

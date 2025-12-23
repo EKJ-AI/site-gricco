@@ -45,6 +45,9 @@ body {
   display: flex;
   flex-direction: column;
   background-color: var(--color-bg-main);
+  max-width: 1400px;
+  width: 100%;
+  margin: auto;
 }
 
 /* Topbar (se você voltar a usar) */

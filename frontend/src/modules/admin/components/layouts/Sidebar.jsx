@@ -58,27 +58,6 @@ const Sidebar = () => {
   const shellRef = useRef(null);
   const pathname = location.pathname || "";
 
-  // match com params do establishment para admin de empresa (que não tem portalContext)
-  const establishmentMatch =
-    matchPath("/companies/:companyId/establishments/:establishmentId/*", pathname) ||
-    matchPath("/companies/:companyId/establishments/:establishmentId", pathname);
-
-  const isInEstablishment = !!establishmentMatch;
-  const routeCompanyId = establishmentMatch?.params?.companyId || null;
-  const routeEstablishmentId = establishmentMatch?.params?.establishmentId || null;
-
-  const portalContext = user?.portalContext || null;
-  const hasPortalEstablishment =
-    !!portalContext?.companyId && !!portalContext?.establishmentId;
-
-  const isGlobalAdmin = (userPerms || []).includes("system.admin.global");
-  const isCompanyAdmin = isGlobalAdmin || (userPerms || []).includes("company.admin");
-  //const isCompanyAdmin = !isGlobalAdmin && (userPerms || []).includes("company.admin");
-
-  const drawerCompanyId = hasPortalEstablishment ? portalContext.companyId : routeCompanyId;
-  const drawerEstablishmentId = hasPortalEstablishment
-    ? portalContext.establishmentId
-    : routeEstablishmentId;
 
   const shellClass = useMemo(() => {
     return `sidebar-shell ${mobileOpen ? "sidebar-shell--open" : ""}`;
@@ -155,116 +134,21 @@ const Sidebar = () => {
 
   const MenuContent = ({ variant = "desktop" }) => (
     <>
-      {isGlobalAdmin && (
-        <>
-          <div className="sidebar-block">
-            <RequirePermission permission="company.read">
-              <div className="sidebar-block-title">Minhas empresas</div>
-              <NavLink to="/companies" end className={linkClassExact}>
-                <span className="sidebar-link-icon user-icon" />
-                <span>Empresas</span>
-              </NavLink>
-            </RequirePermission>
-
-            {/* <RequirePermission permission="inspection.read">
-              <NavLink to="/inspections" className={linkClass}>
-                <span className="sidebar-link-icon file-icon" />
-                <span>Inspeções</span>
-              </NavLink>
-            </RequirePermission>
-
-            <RequirePermission permission="report.read">
-              <NavLink to="/reports" className={linkClass}>
-                <span className="sidebar-link-icon report-icon" />
-                <span>Relatórios</span>
-              </NavLink>
-            </RequirePermission>
-
-            <RequirePermission permission="training.read">
-              <NavLink to="/trainings" className={linkClass}>
-                <span className="sidebar-link-icon training-icon" />
-                <span>Treinamentos</span>
-              </NavLink>
-            </RequirePermission> */}
-          </div>
-        </>
-      )}
-
-      {/* Estabelecimento: somente quando estiver DENTRO do estabelecimento */}
-      {(isCompanyAdmin || hasPortalEstablishment) && isInEstablishment && (
-        <div className={`sidebar-block ${variant === "mobile" ? "sidebar-block--mobile" : ""}`}>
-          <div className="sidebar-block-title">Apps</div>
-
-          <RequirePermission permission="establishment.read">
-            <NavLink
-              to={
-                drawerCompanyId && drawerEstablishmentId && !isCompanyAdmin
-                  ? //`/companies/${drawerCompanyId}/establishments`
-                  `/companies/${drawerCompanyId}/establishments/${drawerEstablishmentId}/dashboard`
-                  : "/companies"
-              }
-              end 
-              className={linkClassExact}
-            >
-              <span className="sidebar-link-icon home-icon" />
-              <span>Home</span>
-            </NavLink>
-          </RequirePermission>
-          <RequirePermission permission="document.read">
-            <NavLink
-              to={
-                drawerCompanyId && drawerEstablishmentId
-                  ? `/companies/${drawerCompanyId}/establishments/${drawerEstablishmentId}/documents`
-                  : "/companies"
-              }
-              className={linkClass}
-            >
-              <span className="sidebar-link-icon document-icon" />
-              <span>Documentos</span>
-            </NavLink>
-            <div className="navbar-subitem" style={{opacity: 0.5, cursor: 'not-allowed'}}>
-              <span className="sidebar-link-icon file-icon" />
-              <span>Inspeções</span>
-            </div>
-            {/* <div className="navbar-subitem">
-              <span className="sidebar-link-icon report-icon" />
-              <span>Relatórios</span>
-            </div> */}
-            <div className="navbar-subitem" style={{opacity: 0.5, cursor: 'not-allowed'}}>
-              <span className="sidebar-link-icon training-icon" />
-              <span>Treinamentos</span>
-            </div>
-          </RequirePermission>
-
-          {/* <RequirePermission permission="inspection.read">
-            <NavLink to="/inspections" className={linkClass}>
-              <span className="sidebar-link-icon file-icon" />
-              <span>Inspeções</span>
-            </NavLink>
-          </RequirePermission>
-
-          <RequirePermission permission="report.read">
-            <NavLink to="/reports" className={linkClass}>
-              <span className="sidebar-link-icon report-icon" />
-              <span>Relatórios</span>
-            </NavLink>
-          </RequirePermission>
-
-          <RequirePermission permission="training.read">
-            <NavLink to="/trainings" className={linkClass}>
-              <span className="sidebar-link-icon training-icon" />
-              <span>Treinamentos</span>
-            </NavLink>
-          </RequirePermission> */}
-        </div>
-      )}
-
       {/* Admin Global: tudo que é “admin master” */}
-      {isGlobalAdmin && (
-        <>
 
           <div className="sidebar-block">
             <div className="sidebar-block-title">Configurações</div>
+
+            <RequirePermission permission="dashboard.view">
+              <NavLink to="/dashboard" className={linkClass}>
+                <span className="sidebar-link-icon user-icon" />
+                <span>Painel</span>
+              </NavLink>
+            </RequirePermission>
+            
+            <RequirePermission permissions={["user.read", "profile.manage", "permission.manage", "audit.read", "documentType.read", "blog.post.read"]}>
+              <div className="sidebar-block-title">Configurações</div>
+            </RequirePermission>
 
             <RequirePermission permission="user.read">
               <NavLink to="/users" className={linkClass}>
@@ -291,13 +175,6 @@ const Sidebar = () => {
               <NavLink to="/audit" className={linkClass}>
                 <span className="sidebar-link-icon report-icon" />
                 <span>Logs</span>
-              </NavLink>
-            </RequirePermission>
-
-            <RequirePermission permission="documentType.read">
-              <NavLink to="/admin/document-types" className={linkClass}>
-                <span className="sidebar-link-icon file-icon" />
-                <span>Tipos de Documentos</span>
               </NavLink>
             </RequirePermission>
 
@@ -333,8 +210,6 @@ const Sidebar = () => {
               </NavLink>
             </RequirePermission>
           </div>
-        </>
-      )}
     </>
   );
 
@@ -414,257 +289,7 @@ const Sidebar = () => {
         </div>
 
         <nav className="navbar-nav" aria-label="Menu principal">
-          {/* Estabelecimento: quando aplicável */}
-          {(isCompanyAdmin || hasPortalEstablishment) && isInEstablishment && (
-            <div className="navbar-item navbar-item--has-menu">
-              <div className="navbar-nav">
-                <RequirePermission permission="establishment.read">
-                  <NavLink
-                    to={
-                      drawerCompanyId && drawerEstablishmentId && !isCompanyAdmin
-                        ? //`/companies/${drawerCompanyId}/establishments/`
-                        `/companies/${drawerCompanyId}/establishments/${drawerEstablishmentId}/dashboard`
-                        : "/companies"
-                    }
-                    end
-                    className={linkClassExact}
-                  >
-                    <span className="sidebar-link-icon home-icon" />
-                    <span>Home</span>
-                  </NavLink>
-                </RequirePermission>
-                <RequirePermission permission="document.read">
-                  <>
-                    <NavLink
-                      to={
-                        drawerCompanyId && drawerEstablishmentId
-                          ? `/companies/${drawerCompanyId}/establishments/${drawerEstablishmentId}/documents`
-                          : "/companies"
-                      }
-                      className={linkClassExact}
-                    >
-                      <span className="sidebar-link-icon document-icon" />
-                      <span>Documentos</span>
-                    </NavLink>
-                    <div className="sidebar-link" style={{opacity: 0.5, cursor: 'not-allowed'}}>
-                      <span className="sidebar-link-icon file-icon" />
-                      <span>Inspeções</span>
-                    </div>
-                    {/* <div className="navbar-subitem">
-                      <span className="sidebar-link-icon report-icon" />
-                      <span>Relatórios</span>
-                    </div> */}
-                    <div className="sidebar-link" style={{opacity: 0.5, cursor: 'not-allowed'}}>
-                      <span className="sidebar-link-icon training-icon" />
-                      <span>Treinamentos</span>
-                    </div>
-                  </>
-                </RequirePermission>
-              </div>
-
-                {/* <RequirePermission permission="inspection.read">
-                  <NavLink to="/inspections" className={subLinkClass}>
-                    <span className="sidebar-link-icon file-icon" />
-                    <span>Inspeções</span>
-                  </NavLink>
-                </RequirePermission>
-
-                <RequirePermission permission="report.read">
-                  <NavLink to="/reports" className={subLinkClass}>
-                    <span className="sidebar-link-icon report-icon" />
-                    <span>Relatórios</span>
-                  </NavLink>
-                </RequirePermission>
-
-                <RequirePermission permission="training.read">
-                  <NavLink to="/trainings" className={subLinkClass}>
-                    <span className="sidebar-link-icon training-icon" />
-                    <span>Treinamentos</span>
-                  </NavLink>
-                </RequirePermission> */}
-              {/* <button type="button" className={triggerClass(isPathIn("/companies"))}>
-                Estabelecimento
-              </button>
-
-              <div className="navbar-dropdown" role="menu">
-                <RequirePermission permission="document.read">
-                  <NavLink
-                    to={
-                      drawerCompanyId && drawerEstablishmentId
-                        ? `/companies/${drawerCompanyId}/establishments/${drawerEstablishmentId}/documents`
-                        : "/companies"
-                    }
-                    className={subLinkClass}
-                  >
-                    <span className="sidebar-link-icon document-icon" />
-                    <span>Documentos</span>
-                  </NavLink>
-                </RequirePermission>
-
-                <RequirePermission permission="inspection.read">
-                  <NavLink to="/inspections" className={subLinkClass}>
-                    <span className="sidebar-link-icon file-icon" />
-                    <span>Inspeções</span>
-                  </NavLink>
-                </RequirePermission>
-
-                <RequirePermission permission="report.read">
-                  <NavLink to="/reports" className={subLinkClass}>
-                    <span className="sidebar-link-icon report-icon" />
-                    <span>Relatórios</span>
-                  </NavLink>
-                </RequirePermission>
-
-                <RequirePermission permission="training.read">
-                  <NavLink to="/trainings" className={subLinkClass}>
-                    <span className="sidebar-link-icon training-icon" />
-                    <span>Treinamentos</span>
-                  </NavLink>
-                </RequirePermission>
-              </div> */}
-            </div>
-          )}
-
-          {/* Admin Global: Apps / Configurações / Traduções */}
           
-          {isGlobalAdmin && (
-            <>
-              {/* <div className="navbar-item navbar-item--has-menu">
-                <button
-                  type="button"
-                  className={triggerClass(
-                    isPathIn("/companies", "/inspections", "/reports", "/trainings")
-                  )}
-                >
-                  Apps
-                </button>
-
-                <div className="navbar-dropdown" role="menu">
-                  <RequirePermission permission="company.read">
-                    <NavLink to="/companies" className={subLinkClass}>
-                      <span className="sidebar-link-icon user-icon" />
-                      <span>Empresas</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="inspection.read">
-                    <NavLink to="/inspections" className={subLinkClass}>
-                      <span className="sidebar-link-icon file-icon" />
-                      <span>Inspeções</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="report.read">
-                    <NavLink to="/reports" className={subLinkClass}>
-                      <span className="sidebar-link-icon report-icon" />
-                      <span>Relatórios</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="training.read">
-                    <NavLink to="/trainings" className={subLinkClass}>
-                      <span className="sidebar-link-icon training-icon" />
-                      <span>Treinamentos</span>
-                    </NavLink>
-                  </RequirePermission>
-                </div>
-              </div> */}
-
-              {/* <div className="navbar-item navbar-item--has-menu">
-                <button
-                  type="button"
-                  className={triggerClass(
-                    isPathIn(
-                      "/users",
-                      "/profiles",
-                      "/permissions",
-                      "/audit",
-                      "/admin/document-types",
-                      "/admin/blog"
-                    )
-                  )}
-                >
-                  Configurações
-                </button>
-
-                <div className="navbar-dropdown" role="menu">
-                  <RequirePermission permission="user.read">
-                    <NavLink to="/users" className={subLinkClass}>
-                      <span className="sidebar-link-icon user-icon" />
-                      <span>Usuários</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="profile.manage">
-                    <NavLink to="/profiles" className={subLinkClass}>
-                      <span className="sidebar-link-icon profile-icon" />
-                      <span>Perfis</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="permission.manage">
-                    <NavLink to="/permissions" className={subLinkClass}>
-                      <span className="sidebar-link-icon shield-icon" />
-                      <span>Permissões</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="audit.read">
-                    <NavLink to="/audit" className={subLinkClass}>
-                      <span className="sidebar-link-icon report-icon" />
-                      <span>Logs</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="documentType.read">
-                    <NavLink to="/admin/document-types" className={subLinkClass}>
-                      <span className="sidebar-link-icon file-icon" />
-                      <span>Tipos de Documentos</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="blog.post.read">
-                    <NavLink to="/admin/blog/posts" className={subLinkClass}>
-                      <span className="sidebar-link-icon file-icon" />
-                      <span>Blog / Notícias</span>
-                    </NavLink>
-                  </RequirePermission>
-                </div>
-              </div>
-
-              <div className="navbar-item navbar-item--has-menu">
-                <button
-                  type="button"
-                  className={triggerClass(isPathIn("/admin/translations"))}
-                >
-                  Traduções
-                </button>
-
-                <div className="navbar-dropdown" role="menu">
-                  <RequirePermission permission="translation.read">
-                    <NavLink to="/admin/translations/translates" className={subLinkClass}>
-                      <span className="sidebar-link-icon globe-icon" />
-                      <span>Textos</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="translation.read">
-                    <NavLink to="/admin/translations/cultures" className={subLinkClass}>
-                      <span className="sidebar-link-icon globe-icon" />
-                      <span>Culturas</span>
-                    </NavLink>
-                  </RequirePermission>
-
-                  <RequirePermission permission="translation.read">
-                    <NavLink to="/admin/translations/labels" className={subLinkClass}>
-                      <span className="sidebar-link-icon globe-icon" />
-                      <span>Labels pendentes</span>
-                    </NavLink>
-                  </RequirePermission>
-                </div>
-              </div> */}
-            </>
-          )}
         </nav>
 
         {/* Avatar à direita + dropdown por clique */}
@@ -697,15 +322,10 @@ const Sidebar = () => {
             </div>
 
           <div className="sidebar-block">
-            <RequirePermission permission="company.read">
-              <div className="sidebar-block-title">Minhas empresas</div>
-              <NavLink to="/dashboard" end className={linkClassExact}>
+            <RequirePermission permission="dashboard.view">
+              <NavLink to="/dashboard" className={linkClass}>
                 <span className="sidebar-link-icon user-icon" />
-                <span>Dashboard</span>
-              </NavLink>
-              <NavLink to="/companies" end className={linkClassExact}>
-                <span className="sidebar-link-icon user-icon" />
-                <span>Empresas</span>
+                <span>Painel</span>
               </NavLink>
             </RequirePermission>
             
@@ -739,14 +359,7 @@ const Sidebar = () => {
                 <span className="sidebar-link-icon report-icon" />
                 <span>Logs</span>
               </NavLink>
-            </RequirePermission>
-
-            <RequirePermission permission="documentType.read">
-              <NavLink to="/admin/document-types" className={linkClass}>
-                <span className="sidebar-link-icon file-icon" />
-                <span>Tipos de Documentos</span>
-              </NavLink>
-            </RequirePermission>
+            </RequirePermission>            
 
             <RequirePermission permission="blog.post.read">
               <NavLink to="/admin/blog/posts" className={linkClass}>
@@ -766,7 +379,6 @@ const Sidebar = () => {
                 <span>Culturas</span>
               </NavLink>
             </RequirePermission>
-
             <RequirePermission permission="translation.read">
               <NavLink to="/admin/translations/translates" className={linkClass}>
                 <span className="sidebar-link-icon globe-icon" />

@@ -4,7 +4,6 @@ import bcrypt from 'bcrypt';
 import logger from '../../utils/logger.js';
 import { registerAudit } from '../../utils/audit.js';
 import { prismaErrorToHttp } from '../../infra/http/prismaError.js';
-import { getPortalContextForUser } from '../auth/auth.controller.js';
 
 export async function getMe(req, res) {
   try {
@@ -27,11 +26,7 @@ export async function getMe(req, res) {
         .json({ success: false, message: 'Usuário não encontrado' });
     }
 
-    const permissions = user.profile.permissions.map(
-      (p) => p.permission.name,
-    );
-
-    const portalContext = await getPortalContextForUser(user.id);
+    const permissions = user.profile.permissions.map((p) => p.permission.name);
 
     res.json({
       success: true,
@@ -47,7 +42,6 @@ export async function getMe(req, res) {
           permissions,
         },
       },
-      portalContext,
     });
   } catch (error) {
     logger.error(`Erro em getMe: ${error.message}`, error);
@@ -59,9 +53,7 @@ export async function getMe(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -82,7 +74,7 @@ export async function list(req, res) {
       ];
     }
 
-    // --------- Filtro de status unificado (igual Companies/Employees) ---------
+    // --------- Filtro de status unificado ---------
     let whereIsActive = {};
 
     if (typeof status === 'string') {
@@ -99,7 +91,6 @@ export async function list(req, res) {
       const showAll = inc === 'true' || inc === '1';
       whereIsActive = showAll ? {} : { isActive: true };
     } else {
-      // default → só ativos
       whereIsActive = { isActive: true };
     }
 
@@ -119,80 +110,14 @@ export async function list(req, res) {
       }),
     ]);
 
-    // ------- Enriquecer com empresa/estabelecimento (portal) -------
-    const userIds = users.map((u) => u.id);
-
-    let employees = [];
-    if (userIds.length) {
-      employees = await prisma.employee.findMany({
-        where: {
-          portalUserId: { in: userIds },
-        },
-        select: {
-          id: true,
-          portalUserId: true,
-          companyId: true,
-          establishmentId: true,
-          company: {
-            select: {
-              id: true,
-              legalName: true,
-              tradeName: true,
-            },
-          },
-          establishment: {
-            select: {
-              id: true,
-              nickname: true,
-              companyId: true,
-            },
-          },
-        },
-      });
-    }
-
-    const employeesByUserId = new Map();
-    for (const emp of employees) {
-      const list = employeesByUserId.get(emp.portalUserId) || [];
-      list.push(emp);
-      employeesByUserId.set(emp.portalUserId, list);
-    }
-
-    const items = users.map((u) => {
-      const emps = employeesByUserId.get(u.id) || [];
-      const firstEmp = emps[0] || null;
-
-      const companyName =
-        firstEmp?.company?.tradeName ||
-        firstEmp?.company?.legalName ||
-        null;
-
-      const establishment =
-        firstEmp && firstEmp.establishment
-          ? {
-              id: firstEmp.establishment.id,
-              nickname: firstEmp.establishment.nickname,
-              companyId:
-                firstEmp.establishment.companyId || firstEmp.company?.id || null,
-            }
-          : null;
-
-      return {
-        id: u.id,
-        name: u.name,
-        email: u.email,
+    const items = users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
         isActive: u.isActive,
-        profileId: u.profileId,
-        profile: u.profile
-          ? {
-              id: u.profile.id,
-              name: u.profile.name,
-            }
-          : null,
-        companyName,
-        establishment,
-      };
-    });
+      profileId: u.profileId,
+      profile: u.profile ? { id: u.profile.id, name: u.profile.name } : null,
+    }));
 
     res.json({
       success: true,
@@ -213,9 +138,7 @@ export async function list(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -243,9 +166,7 @@ export async function getById(req, res) {
         name: user.name,
         email: user.email,
         profileId: user.profileId,
-        profile: user.profile
-          ? { id: user.profile.id, name: user.profile.name }
-          : null,
+        profile: user.profile ? { id: user.profile.id, name: user.profile.name } : null,
         isActive: user.isActive,
       },
     });
@@ -259,9 +180,7 @@ export async function getById(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -309,9 +228,7 @@ export async function create(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -373,15 +290,12 @@ export async function update(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
 /**
  * Soft delete: marca isActive = false em vez de deletar.
- * Mantém compatibilidade com o endpoint DELETE /api/users/:id.
  */
 export async function remove(req, res) {
   try {
@@ -438,9 +352,7 @@ export async function remove(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
 
@@ -482,18 +394,14 @@ export async function setActive(req, res) {
       action: 'UPDATE_USER',
       entity: 'User',
       entityId: updated.id,
-      details: `Usuário ${
-        isActive ? 'ativado' : 'desativado'
-      }: ${updated.email}`,
+      details: `Usuário ${isActive ? 'ativado' : 'desativado'}: ${updated.email}`,
       ip: req.ip,
       userAgent: req.get('user-agent'),
     });
 
     res.json({
       success: true,
-      message: `Usuário ${
-        isActive ? 'ativado' : 'desativado'
-      } com sucesso`,
+      message: `Usuário ${isActive ? 'ativado' : 'desativado'} com sucesso`,
     });
   } catch (err) {
     logger.error(`Erro em setActive usuário: ${err.message}`, err);
@@ -505,8 +413,6 @@ export async function setActive(req, res) {
         message: mapped.message,
       });
     }
-    res
-      .status(500)
-      .json({ success: false, message: 'Erro interno no servidor' });
+    res.status(500).json({ success: false, message: 'Erro interno no servidor' });
   }
 }
